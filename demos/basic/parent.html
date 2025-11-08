@@ -1,274 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Frame Bridge Demo - Parent</title>
-    <style>
-      body {
-        font-family: system-ui, -apple-system, sans-serif;
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-        background: #f5f5f5;
-      }
-      .container {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        margin-top: 0;
-        color: #333;
-      }
-      h2 {
-        color: #555;
-        font-size: 1.2rem;
-        margin-top: 0;
-      }
-      iframe {
-        width: 100%;
-        border: 2px solid #ddd;
-        border-radius: 4px;
-        transition: height 0.3s ease;
-      }
-      .controls {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 10px;
-        flex-wrap: wrap;
-      }
-      button {
-        padding: 10px 16px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-      }
-      button:hover {
-        background: #0056b3;
-      }
-      button:active {
-        transform: scale(0.98);
-      }
-      .info {
-        background: #e9ecef;
-        padding: 15px;
-        border-radius: 4px;
-        margin-top: 10px;
-        font-family: "Courier New", monospace;
-        font-size: 13px;
-        white-space: pre-wrap;
-        word-break: break-all;
-      }
-      .log {
-        max-height: 300px;
-        overflow-y: auto;
-        background: #212529;
-        color: #00ff00;
-        padding: 15px;
-        border-radius: 4px;
-        font-family: "Courier New", monospace;
-        font-size: 12px;
-      }
-      .log-entry {
-        margin-bottom: 5px;
-      }
-      .log-time {
-        color: #6c757d;
-      }
-      input {
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>🌉 Frame Bridge Demo - Parent</h1>
-      <p>This page demonstrates the parent side of the frame-bridge library.</p>
-    </div>
-
-    <div class="container">
-      <h2>📊 Controls</h2>
-      <div class="controls">
-        <button onclick="navigateToHome()">Navigate to Home</button>
-        <button onclick="navigateToAbout()">Navigate to About</button>
-        <button onclick="navigateToUsers()">Navigate to Users</button>
-        <button onclick="sendCustomMessage()">Send Custom Message</button>
-        <button onclick="getIframeInfo()">Get Iframe Info</button>
-      </div>
-      <div class="controls">
-        <input type="text" id="customPath" placeholder="/custom/path" />
-        <button onclick="navigateToCustom()">Navigate to Custom Path</button>
-      </div>
-    </div>
-
-    <div class="container">
-      <h2>📍 Current State</h2>
-      <div class="info" id="stateInfo">Waiting for iframe to initialize...</div>
-    </div>
-
-    <div class="container">
-      <h2>📺 Embedded Iframe</h2>
-      <iframe
-        src="child.html"
-        data-messenger-id="demo-iframe"
-        id="demoIframe"
-        style="height: 400px"
-      ></iframe>
-    </div>
-
-    <div class="container">
-      <h2>📋 Event Log</h2>
-      <div class="log" id="eventLog"></div>
-    </div>
-
-    <script type="module">
-      import { ParentMessenger } from "../../src/parent/index.js";
-
-      // Create messenger
-      const messenger = new ParentMessenger({
-        autoResize: true,
-        urlSync: true,
-        jsonLD: true,
-        urlParamKey: "iframe-path",
-
-        onIframeReady: (id, info) => {
-          log("iframe-ready", `Iframe ${id} ready`, info);
-          updateState();
-        },
-
-        onRouteChange: (id, route) => {
-          log("route-change", `Route changed: ${route.path}`, route);
-          updateState();
-        },
-
-        onDimensionUpdate: (id, dimensions) => {
-          log(
-            "dimension-update",
-            `Dimensions: ${dimensions.width}x${dimensions.height}`,
-            dimensions
-          );
-        },
-
-        actionHandlers: {
-          customAction: (iframeId, params) => {
-            log("custom-action", `Custom action from ${iframeId}`, params);
-            return { status: "received", timestamp: Date.now() };
-          },
-        },
-      });
-
-      // Make messenger available globally for demo buttons
-      window.messenger = messenger;
-
-      // Functions for demo buttons
-      window.navigateToHome = () => {
-        messenger
-          .sendToChild("demo-iframe", "navigate", { path: "/" })
-          .then(() => log("navigate", "Navigated to home"))
-          .catch((err) => log("error", "Navigation failed", err));
-      };
-
-      window.navigateToAbout = () => {
-        messenger
-          .sendToChild("demo-iframe", "navigate", { path: "/about" })
-          .then(() => log("navigate", "Navigated to about"))
-          .catch((err) => log("error", "Navigation failed", err));
-      };
-
-      window.navigateToUsers = () => {
-        messenger
-          .sendToChild("demo-iframe", "navigate", { path: "/users" })
-          .then(() => log("navigate", "Navigated to users"))
-          .catch((err) => log("error", "Navigation failed", err));
-      };
-
-      window.navigateToCustom = () => {
-        const path = document.getElementById("customPath").value;
-        if (!path) return;
-
-        messenger
-          .sendToChild("demo-iframe", "navigate", { path })
-          .then(() => log("navigate", `Navigated to ${path}`))
-          .catch((err) => log("error", "Navigation failed", err));
-      };
-
-      window.sendCustomMessage = async () => {
-        try {
-          const response = await messenger.sendToChild(
-            "demo-iframe",
-            "customAction",
-            {
-              message: "Hello from parent!",
-              timestamp: Date.now(),
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Frame Bridge Demo - Parent</title>
+        <style>
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f5f5f5;
             }
-          );
-          log("custom-response", "Received response from child", response);
-        } catch (err) {
-          log("error", "Custom message failed", err);
-        }
-      };
+            .container {
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                margin-top: 0;
+                color: #333;
+            }
+            h2 {
+                color: #555;
+                font-size: 1.2rem;
+                margin-top: 0;
+            }
+            iframe {
+                width: 100%;
+                border: 2px solid #ddd;
+                border-radius: 4px;
+                transition: height 0.3s ease;
+            }
+            .controls {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 10px;
+                flex-wrap: wrap;
+            }
+            button {
+                padding: 10px 16px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            button:active {
+                transform: scale(0.98);
+            }
+            .info {
+                background: #e9ecef;
+                padding: 15px;
+                border-radius: 4px;
+                margin-top: 10px;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                white-space: pre-wrap;
+                word-break: break-all;
+            }
+            .log {
+                max-height: 300px;
+                overflow-y: auto;
+                background: #212529;
+                color: #00ff00;
+                padding: 15px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }
+            .log-entry {
+                margin-bottom: 5px;
+            }
+            .log-time {
+                color: #6c757d;
+            }
+            input {
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🌉 Frame Bridge Demo - Parent</h1>
+            <p>
+                This page demonstrates the parent side of the frame-bridge
+                library.
+            </p>
+        </div>
 
-      window.getIframeInfo = () => {
-        const info = messenger.getIframe("demo-iframe");
-        log("iframe-info", "Current iframe info", info);
-        updateState();
-      };
+        <div class="container">
+            <h2>📊 Controls</h2>
+            <div class="controls">
+                <button onclick="navigateToHome()">Navigate to Home</button>
+                <button onclick="navigateToAbout()">Navigate to About</button>
+                <button onclick="navigateToUsers()">Navigate to Users</button>
+                <button onclick="sendCustomMessage()">
+                    Send Custom Message
+                </button>
+                <button onclick="getIframeInfo()">Get Iframe Info</button>
+            </div>
+            <div class="controls">
+                <input type="text" id="customPath" placeholder="/custom/path" />
+                <button onclick="navigateToCustom()">
+                    Navigate to Custom Path
+                </button>
+            </div>
+        </div>
 
-      // Update state display
-      function updateState() {
-        const iframe = messenger.getIframe("demo-iframe");
-        if (!iframe) {
-          document.getElementById("stateInfo").textContent =
-            "No iframe registered yet";
-          return;
-        }
+        <div class="container">
+            <h2>📍 Current State</h2>
+            <div class="info" id="stateInfo">
+                Waiting for iframe to initialize...
+            </div>
+        </div>
 
-        const state = {
-          iframeId: "demo-iframe",
-          route: iframe.route,
-          dimensions: iframe.dimensions,
-          origin: iframe.origin,
-          registeredAt: new Date(iframe.registeredAt).toLocaleTimeString(),
-        };
+        <div class="container">
+            <h2>📺 Embedded Iframe</h2>
+            <iframe
+                src="child.html"
+                data-messenger-id="demo-iframe"
+                id="demoIframe"
+                style="height: 400px"
+            ></iframe>
+        </div>
 
-        document.getElementById("stateInfo").textContent = JSON.stringify(
-          state,
-          null,
-          2
-        );
-      }
+        <div class="container">
+            <h2>📋 Event Log</h2>
+            <div class="log" id="eventLog"></div>
+        </div>
 
-      // Logging
-      const logContainer = document.getElementById("eventLog");
-      function log(type, message, data) {
-        const time = new Date().toLocaleTimeString();
-        const entry = document.createElement("div");
-        entry.className = "log-entry";
+        <script type="module">
+            import { ParentMessenger } from '../../src/parent/index.js';
 
-        let logText = `<span class="log-time">[${time}]</span> <strong>[${type.toUpperCase()}]</strong> ${message}`;
-        if (data) {
-          logText += `\n${JSON.stringify(data, null, 2)}`;
-        }
+            // Create messenger
+            const messenger = new ParentMessenger({
+                autoResize: true,
+                urlSync: true,
+                jsonLD: true,
+                urlParamKey: 'iframe-path',
 
-        entry.innerHTML = logText;
-        logContainer.insertBefore(entry, logContainer.firstChild);
+                onIframeReady: (id, info) => {
+                    log('iframe-ready', `Iframe ${id} ready`, info);
+                    updateState();
+                },
 
-        // Keep only last 50 entries
-        while (logContainer.children.length > 50) {
-          logContainer.removeChild(logContainer.lastChild);
-        }
-      }
+                onRouteChange: (id, route) => {
+                    log('route-change', `Route changed: ${route.path}`, route);
+                    updateState();
+                },
 
-      log("init", "ParentMessenger initialized");
-    </script>
-  </body>
+                onDimensionUpdate: (id, dimensions) => {
+                    log(
+                        'dimension-update',
+                        `Dimensions: ${dimensions.width}x${dimensions.height}`,
+                        dimensions
+                    );
+                },
+
+                actionHandlers: {
+                    customAction: (iframeId, params) => {
+                        log(
+                            'custom-action',
+                            `Custom action from ${iframeId}`,
+                            params
+                        );
+                        return { status: 'received', timestamp: Date.now() };
+                    },
+                },
+            });
+
+            // Make messenger available globally for demo buttons
+            window.messenger = messenger;
+
+            // Functions for demo buttons
+            window.navigateToHome = () => {
+                messenger
+                    .sendToChild('demo-iframe', 'navigate', { path: '/' })
+                    .then(() => log('navigate', 'Navigated to home'))
+                    .catch((err) => log('error', 'Navigation failed', err));
+            };
+
+            window.navigateToAbout = () => {
+                messenger
+                    .sendToChild('demo-iframe', 'navigate', { path: '/about' })
+                    .then(() => log('navigate', 'Navigated to about'))
+                    .catch((err) => log('error', 'Navigation failed', err));
+            };
+
+            window.navigateToUsers = () => {
+                messenger
+                    .sendToChild('demo-iframe', 'navigate', { path: '/users' })
+                    .then(() => log('navigate', 'Navigated to users'))
+                    .catch((err) => log('error', 'Navigation failed', err));
+            };
+
+            window.navigateToCustom = () => {
+                const path = document.getElementById('customPath').value;
+                if (!path) return;
+
+                messenger
+                    .sendToChild('demo-iframe', 'navigate', { path })
+                    .then(() => log('navigate', `Navigated to ${path}`))
+                    .catch((err) => log('error', 'Navigation failed', err));
+            };
+
+            window.sendCustomMessage = async () => {
+                try {
+                    const response = await messenger.sendToChild(
+                        'demo-iframe',
+                        'customAction',
+                        {
+                            message: 'Hello from parent!',
+                            timestamp: Date.now(),
+                        }
+                    );
+                    log(
+                        'custom-response',
+                        'Received response from child',
+                        response
+                    );
+                } catch (err) {
+                    log('error', 'Custom message failed', err);
+                }
+            };
+
+            window.getIframeInfo = () => {
+                const info = messenger.getIframe('demo-iframe');
+                log('iframe-info', 'Current iframe info', info);
+                updateState();
+            };
+
+            // Update state display
+            function updateState() {
+                const iframe = messenger.getIframe('demo-iframe');
+                if (!iframe) {
+                    document.getElementById('stateInfo').textContent =
+                        'No iframe registered yet';
+                    return;
+                }
+
+                const state = {
+                    iframeId: 'demo-iframe',
+                    route: iframe.route,
+                    dimensions: iframe.dimensions,
+                    origin: iframe.origin,
+                    registeredAt: new Date(
+                        iframe.registeredAt
+                    ).toLocaleTimeString(),
+                };
+
+                document.getElementById('stateInfo').textContent =
+                    JSON.stringify(state, null, 2);
+            }
+
+            // Logging
+            const logContainer = document.getElementById('eventLog');
+            function log(type, message, data) {
+                const time = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+
+                let logText = `<span class="log-time">[${time}]</span> <strong>[${type.toUpperCase()}]</strong> ${message}`;
+                if (data) {
+                    logText += `\n${JSON.stringify(data, null, 2)}`;
+                }
+
+                entry.innerHTML = logText;
+                logContainer.insertBefore(entry, logContainer.firstChild);
+
+                // Keep only last 50 entries
+                while (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+            }
+
+            log('init', 'ParentMessenger initialized');
+        </script>
+    </body>
 </html>
