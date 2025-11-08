@@ -99,7 +99,12 @@ export class ParentMessenger extends BaseMessenger {
 
         // Trigger callback
         if (this.options.onIframeReady) {
-            this.options.onIframeReady(iframeId, { origin, dimensions, route, metadata });
+            this.options.onIframeReady(iframeId, {
+                origin,
+                dimensions,
+                route,
+                metadata,
+            });
         }
 
         // Prepare response with initial configuration
@@ -115,7 +120,9 @@ export class ParentMessenger extends BaseMessenger {
             const allParams = this.urlSync.getAllParams();
             const params = this.options.syncParams
                 ? Object.fromEntries(
-                      Object.entries(allParams).filter(([key]) => this.options.syncParams.includes(key))
+                      Object.entries(allParams).filter(([key]) =>
+                          this.options.syncParams.includes(key)
+                      )
                   )
                 : allParams;
 
@@ -140,23 +147,56 @@ export class ParentMessenger extends BaseMessenger {
      * @returns {Object} Acknowledgment
      */
     handleDimensionUpdate(params, source) {
-        const { iframeId, width, height } = params;
+        const { iframeId, width, height, _debug } = params;
 
-        // Update registry
-        this.registry.update(iframeId, { dimensions: { width, height } });
+        // Update registry with dimension info
+        this.registry.update(iframeId, {
+            dimensions: { width, height, _debug },
+        });
 
         // Auto-resize if enabled
         if (this.options.autoResize) {
             const iframeElement = this.findIframeElement(iframeId, source);
             if (iframeElement) {
-                iframeElement.style.height = `${height}px`;
-                this.logger.debug('Iframe resized:', { iframeId, height });
+                // Get current height to avoid redundant updates
+                const currentHeight =
+                    parseInt(iframeElement.style.height) ||
+                    iframeElement.offsetHeight;
+
+                // Only resize if height actually changed (within 1px tolerance for sub-pixel rendering)
+                if (Math.abs(currentHeight - height) > 1) {
+                    iframeElement.style.height = `${height}px`;
+
+                    if (_debug) {
+                        this.logger.debug('Iframe resized:', {
+                            iframeId,
+                            oldHeight: currentHeight,
+                            newHeight: height,
+                            bodySpacing: _debug.bodySpacing?.total || 0,
+                        });
+                    } else {
+                        this.logger.debug('Iframe resized:', {
+                            iframeId,
+                            oldHeight: currentHeight,
+                            newHeight: height,
+                        });
+                    }
+                } else {
+                    this.logger.debug(
+                        'Iframe height unchanged, skipping resize:',
+                        {
+                            iframeId,
+                            height: currentHeight,
+                            diff: Math.abs(currentHeight - height),
+                        }
+                    );
+                }
             }
         }
 
         // Trigger callback
         if (this.options.onDimensionUpdate) {
-            this.options.onDimensionUpdate(iframeId, { width, height });
+            this.options.onDimensionUpdate(iframeId, { width, height, _debug });
         }
 
         return { status: 'ok' };
@@ -225,7 +265,9 @@ export class ParentMessenger extends BaseMessenger {
      */
     findIframeElement(iframeId, iframeWindow) {
         // Try by data attribute first
-        const byAttribute = document.querySelector(`iframe[data-messenger-id="${iframeId}"]`);
+        const byAttribute = document.querySelector(
+            `iframe[data-messenger-id="${iframeId}"]`
+        );
         if (byAttribute) return byAttribute;
 
         // Try by content window
@@ -250,7 +292,9 @@ export class ParentMessenger extends BaseMessenger {
         const iframe = this.registry.get(iframeId);
         if (!iframe) {
             this.logger.error(ERRORS.NO_CHILD_WINDOW, { iframeId });
-            return Promise.reject(new Error(`${ERRORS.NO_CHILD_WINDOW}: ${iframeId}`));
+            return Promise.reject(
+                new Error(`${ERRORS.NO_CHILD_WINDOW}: ${iframeId}`)
+            );
         }
 
         return this.sendMessage(iframe.window, action, params, iframe.origin);
@@ -269,7 +313,11 @@ export class ParentMessenger extends BaseMessenger {
         await Promise.allSettled(
             iframeIds.map(async (iframeId) => {
                 try {
-                    results[iframeId] = await this.sendToChild(iframeId, action, params);
+                    results[iframeId] = await this.sendToChild(
+                        iframeId,
+                        action,
+                        params
+                    );
                 } catch (error) {
                     results[iframeId] = { error: error.message };
                 }

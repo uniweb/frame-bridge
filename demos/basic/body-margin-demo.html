@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Body Margin Test - Parent</title>
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+                padding: 20px;
+                background: #f5f5f5;
+                margin: 0;
+            }
+            .container {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            h1,
+            h2 {
+                margin-top: 0;
+            }
+            .comparison {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin: 20px 0;
+            }
+            .side {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+            }
+            .metric {
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 10px;
+                margin: 5px 0;
+                font-family: monospace;
+                font-size: 14px;
+            }
+            .metric-label {
+                font-weight: bold;
+                color: #495057;
+            }
+            .metric-value {
+                color: #0066cc;
+            }
+            .highlight {
+                background: #fff3cd;
+                padding: 15px;
+                border-left: 4px solid #ffc107;
+                margin: 15px 0;
+            }
+            .success {
+                background: #d4edda;
+                padding: 15px;
+                border-left: 4px solid #28a745;
+                margin: 15px 0;
+            }
+            .error {
+                background: #f8d7da;
+                padding: 15px;
+                border-left: 4px solid #dc3545;
+                margin: 15px 0;
+            }
+            iframe {
+                width: 100%;
+                border: 2px solid #0066cc;
+                border-radius: 4px;
+                display: block;
+            }
+            button {
+                padding: 10px 16px;
+                background: #0066cc;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 10px;
+            }
+            button:hover {
+                background: #0052a3;
+            }
+            .diff {
+                font-weight: bold;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            .diff-good {
+                background: #d4edda;
+                color: #155724;
+            }
+            .diff-bad {
+                background: #f8d7da;
+                color: #721c24;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔬 Body Margin Issue - Root Cause Analysis</h1>
+            <p>
+                This demonstrates the common 40px height mismatch issue and how
+                the library solves it.
+            </p>
+        </div>
+
+        <div class="container">
+            <h2>📊 Current Measurements</h2>
+            <button onclick="refresh()">🔄 Refresh</button>
+            <button onclick="fixMargins()">✨ Fix Body Margins</button>
+            <button onclick="restoreMargins()">↩️ Restore Margins</button>
+
+            <div id="analysis">
+                <em>Loading...</em>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>📺 Test Iframe</h2>
+            <iframe
+                src="body-margin-test.html"
+                data-messenger-id="margin-test"
+                id="testIframe"
+                style="height: 400px"
+            ></iframe>
+        </div>
+
+        <script type="module">
+            import { ParentMessenger } from '../../src/parent/index.js';
+
+            let lastDimensions = null;
+
+            const messenger = new ParentMessenger({
+                autoResize: true,
+                urlSync: false,
+                jsonLD: false,
+                logLevel: 'info',
+
+                onDimensionUpdate: (id, dimensions) => {
+                    lastDimensions = dimensions;
+                    displayAnalysis(dimensions);
+                },
+            });
+
+            window.refresh = () => {
+                if (lastDimensions) {
+                    displayAnalysis(lastDimensions);
+                }
+            };
+
+            window.fixMargins = () => {
+                messenger.sendToChild('margin-test', 'customAction', {
+                    action: 'resetMargins',
+                });
+            };
+
+            window.restoreMargins = () => {
+                messenger.sendToChild('margin-test', 'customAction', {
+                    action: 'restoreMargins',
+                });
+            };
+
+            function displayAnalysis(dims) {
+                const iframe = document.getElementById('testIframe');
+                const iframeHeight = iframe.offsetHeight;
+                const diff = dims.height - iframeHeight;
+                const absDiff = Math.abs(diff);
+
+                let statusClass = 'success';
+                let statusMessage = '✅ Heights match!';
+
+                if (absDiff > 5) {
+                    statusClass = 'error';
+                    statusMessage = `⚠️ Height mismatch: ${diff}px difference`;
+                } else if (absDiff > 0) {
+                    statusClass = 'highlight';
+                    statusMessage = `⚡ Small difference: ${diff}px (within tolerance)`;
+                }
+
+                let bodyMarginNote = '';
+                if (dims.bodyMargins && dims.bodyMargins.vertical > 0) {
+                    bodyMarginNote = `
+                    <div class="highlight">
+                        <strong>🎯 Body Margins Detected!</strong><br>
+                        The iframe's body has ${dims.bodyMargins.vertical}px of vertical margins 
+                        (${dims.bodyMargins.top}px top + ${dims.bodyMargins.bottom}px bottom).<br>
+                        <br>
+                        <strong>Good news:</strong> The library automatically accounts for these margins!<br>
+                        Height calculation: ${dims.contentHeight}px (content) + ${dims.bodyMargins.vertical}px (margins) = ${dims.height}px (total)
+                    </div>
+                `;
+                }
+
+                const html = `
+                <div class="${statusClass}">
+                    <h3 style="margin-top: 0;">${statusMessage}</h3>
+                </div>
+                
+                ${bodyMarginNote}
+                
+                <div class="comparison">
+                    <div class="side">
+                        <h3>📏 Inside Iframe (Child Reports)</h3>
+                        <div class="metric">
+                            <div class="metric-label">Total Height:</div>
+                            <div class="metric-value">${dims.height}px</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Content Height:</div>
+                            <div class="metric-value">${
+                                dims.contentHeight
+                            }px</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Body Margins:</div>
+                            <div class="metric-value">${
+                                dims.bodyMargins?.vertical || 0
+                            }px</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">• Top:</div>
+                            <div class="metric-value">${
+                                dims.bodyMargins?.top || 0
+                            }px</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">• Bottom:</div>
+                            <div class="metric-value">${
+                                dims.bodyMargins?.bottom || 0
+                            }px</div>
+                        </div>
+                    </div>
+                    
+                    <div class="side">
+                        <h3>🖼️ Outside Iframe (Parent Sees)</h3>
+                        <div class="metric">
+                            <div class="metric-label">Iframe Height:</div>
+                            <div class="metric-value">${iframeHeight}px</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Set Height:</div>
+                            <div class="metric-value">${
+                                iframe.style.height
+                            }</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Difference:</div>
+                            <div class="metric-value diff ${
+                                absDiff < 5 ? 'diff-good' : 'diff-bad'
+                            }">
+                                ${diff}px
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>🔍 What's Happening?</h3>
+                <ol>
+                    <li><strong>Browser Default:</strong> Most browsers apply default margins to &lt;body&gt; (often 8px or 20px)</li>
+                    <li><strong>Measurement:</strong> Child measures content = ${
+                        dims.contentHeight
+                    }px</li>
+                    <li><strong>Body Margins:</strong> Body has ${
+                        dims.bodyMargins?.vertical || 0
+                    }px of margins</li>
+                    <li><strong>Library Adds Margins:</strong> Total = ${
+                        dims.contentHeight
+                    }px + ${dims.bodyMargins?.vertical || 0}px = ${
+                    dims.height
+                }px</li>
+                    <li><strong>Parent Sets Height:</strong> iframe.style.height = "${
+                        dims.height
+                    }px"</li>
+                    <li><strong>Result:</strong> ${
+                        absDiff < 5
+                            ? 'Perfect match! ✅'
+                            : 'Mismatch detected ⚠️'
+                    }</li>
+                </ol>
+                
+                ${
+                    absDiff < 5
+                        ? `
+                    <div class="success">
+                        <strong>✅ Working Correctly!</strong><br>
+                        The library is successfully accounting for body margins.
+                        ${
+                            dims.bodyMargins?.vertical > 0
+                                ? `Even with ${dims.bodyMargins.vertical}px of body margins, the heights match within tolerance.`
+                                : ''
+                        }
+                    </div>
+                `
+                        : `
+                    <div class="error">
+                        <strong>⚠️ Height Mismatch Detected</strong><br>
+                        There's a ${absDiff}px difference. This could be due to:<br>
+                        • Iframe border: ${getIframeBorder()}px<br>
+                        • Additional padding or margins<br>
+                        • CSS transforms or other effects<br>
+                        <br>
+                        Try setting <code>iframe { border: 0; }</code> in parent CSS.
+                    </div>
+                `
+                }
+            `;
+
+                document.getElementById('analysis').innerHTML = html;
+            }
+
+            function getIframeBorder() {
+                const iframe = document.getElementById('testIframe');
+                const style = window.getComputedStyle(iframe);
+                return (
+                    parseInt(style.borderTopWidth) +
+                    parseInt(style.borderBottomWidth)
+                );
+            }
+        </script>
+    </body>
+</html>

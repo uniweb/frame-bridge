@@ -12,6 +12,7 @@ export class ChildMessenger extends BaseMessenger {
      * @param {Object} options - Configuration options
      * @param {string[]|null} options.allowedOrigins - Allowed parent origins
      * @param {boolean} options.dimensionReporting - Enable automatic dimension reporting
+     * @param {number} options.dimensionThreshold - Minimum dimension change (px) to report (default: 5)
      * @param {boolean} options.routeReporting - Enable automatic route reporting
      * @param {Function} options.getRoute - Function to get current route (default: pathname)
      * @param {Function} options.onParentReady - Callback when parent responds to announce
@@ -47,6 +48,10 @@ export class ChildMessenger extends BaseMessenger {
         // Store options
         this.options = {
             dimensionReporting: options.dimensionReporting !== false,
+            dimensionThreshold:
+                options.dimensionThreshold !== undefined
+                    ? options.dimensionThreshold
+                    : 1,
             routeReporting: options.routeReporting !== false,
             getRoute: options.getRoute || defaultRouteGetter,
             onParentReady: options.onParentReady || null,
@@ -95,7 +100,11 @@ export class ChildMessenger extends BaseMessenger {
 
         while (attempt < maxRetries) {
             try {
-                this.logger.debug(`Announcing to parent (attempt ${attempt + 1}/${maxRetries})`);
+                this.logger.debug(
+                    `Announcing to parent (attempt ${
+                        attempt + 1
+                    }/${maxRetries})`
+                );
 
                 const response = await this.sendToParent(ACTIONS.ANNOUNCE, {
                     iframeId: this.iframeId,
@@ -108,7 +117,10 @@ export class ChildMessenger extends BaseMessenger {
                 return; // Success!
             } catch (error) {
                 attempt++;
-                this.logger.warn(`Announce attempt ${attempt} failed:`, error.message);
+                this.logger.warn(
+                    `Announce attempt ${attempt} failed:`,
+                    error.message
+                );
 
                 if (attempt < maxRetries) {
                     await sleep(DEFAULTS.ANNOUNCE_RETRY_DELAY);
@@ -131,7 +143,10 @@ export class ChildMessenger extends BaseMessenger {
         this.params = params;
         this.config = config;
 
-        this.logger.info('Announce successful, received config:', { params, config });
+        this.logger.info('Announce successful, received config:', {
+            params,
+            config,
+        });
 
         // Start reporters
         if (this.options.dimensionReporting) {
@@ -177,6 +192,13 @@ export class ChildMessenger extends BaseMessenger {
             DEFAULTS.DIMENSION_DEBOUNCE,
             this.logger
         );
+
+        // Set custom threshold if provided
+        if (this.options.dimensionThreshold !== 1) {
+            this.dimensionReporter.setThreshold(
+                this.options.dimensionThreshold
+            );
+        }
     }
 
     /**
@@ -200,21 +222,65 @@ export class ChildMessenger extends BaseMessenger {
 
     /**
      * Get current dimensions
+     * Accounts for body margin, padding, and border
      * @private
-     * @returns {Object} Dimensions
+     * @returns {Object} Dimensions object
      */
     getDimensions() {
-        const height = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight
+        const body = document.body;
+        const html = document.documentElement;
+        const bodyStyle = window.getComputedStyle(body);
+
+        // Get body spacing that affects total height
+        const bodyMarginTop = parseInt(bodyStyle.marginTop) || 0;
+        const bodyMarginBottom = parseInt(bodyStyle.marginBottom) || 0;
+        const bodyPaddingTop = parseInt(bodyStyle.paddingTop) || 0;
+        const bodyPaddingBottom = parseInt(bodyStyle.paddingBottom) || 0;
+        const bodyBorderTop = parseInt(bodyStyle.borderTopWidth) || 0;
+        const bodyBorderBottom = parseInt(bodyStyle.borderBottomWidth) || 0;
+
+        // Get content height (without body's own spacing)
+        const contentHeight = Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            html.scrollHeight,
+            html.offsetHeight
         );
 
-        const width = Math.max(
-            document.body.scrollWidth,
-            document.documentElement.scrollWidth
+        const contentWidth = Math.max(
+            body.scrollWidth,
+            body.offsetWidth,
+            html.scrollWidth,
+            html.offsetWidth
         );
 
-        return { width, height };
+        // Total spacing on body element
+        const bodyVerticalSpacing =
+            bodyMarginTop +
+            bodyMarginBottom +
+            bodyPaddingTop +
+            bodyPaddingBottom +
+            bodyBorderTop +
+            bodyBorderBottom;
+
+        // True height = content + all body spacing
+        const totalHeight = contentHeight + bodyVerticalSpacing;
+
+        return {
+            width: contentWidth,
+            height: totalHeight,
+
+            // Include spacing breakdown for debugging
+            _debug: {
+                contentHeight,
+                bodySpacing: {
+                    margin: bodyMarginTop + bodyMarginBottom,
+                    padding: bodyPaddingTop + bodyPaddingBottom,
+                    border: bodyBorderTop + bodyBorderBottom,
+                    total: bodyVerticalSpacing,
+                },
+            },
+        };
     }
 
     /**
@@ -277,7 +343,12 @@ export class ChildMessenger extends BaseMessenger {
             return Promise.resolve();
         }
 
-        return this.sendMessage(window.parent, action, params, window.location.origin);
+        return this.sendMessage(
+            window.parent,
+            action,
+            params,
+            window.location.origin
+        );
     }
 
     /**

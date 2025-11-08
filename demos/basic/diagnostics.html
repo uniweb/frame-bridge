@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Iframe Dimension Diagnostics</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                font-family: 'Courier New', monospace;
+                padding: 20px;
+                background: #1e1e1e;
+                color: #d4d4d4;
+                margin: 0;
+            }
+            .container {
+                background: #252526;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border: 1px solid #3e3e42;
+            }
+            h1,
+            h2 {
+                margin-top: 0;
+                color: #4ec9b0;
+            }
+            .section {
+                margin-bottom: 20px;
+            }
+            .metric-grid {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                gap: 10px 20px;
+                margin: 10px 0;
+            }
+            .metric-label {
+                color: #9cdcfe;
+                font-weight: bold;
+            }
+            .metric-value {
+                color: #ce9178;
+                font-family: 'Courier New', monospace;
+            }
+            .metric-bar {
+                background: #3e3e42;
+                height: 20px;
+                border-radius: 3px;
+                overflow: hidden;
+                min-width: 200px;
+            }
+            .metric-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #4ec9b0, #569cd6);
+                transition: width 0.3s;
+            }
+            .warning {
+                color: #d7ba7d;
+                background: #3e3e1e;
+                padding: 10px;
+                border-left: 3px solid #d7ba7d;
+                margin: 10px 0;
+            }
+            .error {
+                color: #f48771;
+                background: #3e1e1e;
+                padding: 10px;
+                border-left: 3px solid #f48771;
+                margin: 10px 0;
+            }
+            .success {
+                color: #4ec9b0;
+                background: #1e3e3e;
+                padding: 10px;
+                border-left: 3px solid #4ec9b0;
+                margin: 10px 0;
+            }
+            .comparison {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin: 20px 0;
+            }
+            .comparison-side {
+                background: #1e1e1e;
+                padding: 15px;
+                border-radius: 5px;
+            }
+            .comparison-side h3 {
+                margin-top: 0;
+                color: #569cd6;
+            }
+            iframe {
+                width: 100%;
+                border: 2px solid #569cd6;
+                border-radius: 4px;
+                margin-top: 10px;
+            }
+            button {
+                background: #0e639c;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-family: 'Courier New', monospace;
+                margin-right: 10px;
+            }
+            button:hover {
+                background: #1177bb;
+            }
+            .json-display {
+                background: #1e1e1e;
+                padding: 15px;
+                border-radius: 5px;
+                white-space: pre-wrap;
+                font-size: 12px;
+                overflow-x: auto;
+                border: 1px solid #3e3e42;
+            }
+            .diff {
+                font-weight: bold;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            .diff-positive {
+                background: #1e3e1e;
+                color: #4ec9b0;
+            }
+            .diff-negative {
+                background: #3e1e1e;
+                color: #f48771;
+            }
+            .highlight {
+                background: #3e3e1e;
+                padding: 2px 6px;
+                border-radius: 3px;
+                color: #d7ba7d;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔬 Iframe Dimension Diagnostics</h1>
+            <p>
+                This tool helps identify the root cause of dimension measurement
+                discrepancies.
+            </p>
+        </div>
+
+        <div class="container">
+            <h2>📊 Live Measurements</h2>
+            <button onclick="refresh()">🔄 Refresh</button>
+            <button onclick="addContent()">➕ Add Content</button>
+            <button onclick="removeContent()">➖ Remove Content</button>
+
+            <div class="section" id="measurements">
+                <em>Waiting for iframe to load...</em>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>🔍 Diagnostic Analysis</h2>
+            <div id="diagnostics">
+                <em>Run refresh to see diagnostics...</em>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>📺 Test Iframe</h2>
+            <iframe
+                src="child.html"
+                data-messenger-id="diag-iframe"
+                id="diagIframe"
+                style="height: 500px"
+            ></iframe>
+        </div>
+
+        <div class="container">
+            <h2>📋 Raw Data</h2>
+            <div class="json-display" id="rawData"></div>
+        </div>
+
+        <script type="module">
+            import { ParentMessenger } from '../../src/parent/index.js';
+
+            let lastDimensions = null;
+            let messenger;
+
+            // Initialize
+            messenger = new ParentMessenger({
+                autoResize: true,
+                urlSync: false,
+                jsonLD: false,
+                logLevel: 'debug',
+
+                onDimensionUpdate: (id, dimensions) => {
+                    lastDimensions = dimensions;
+                    displayMeasurements(dimensions);
+                    runDiagnostics(dimensions);
+                },
+            });
+
+            window.refresh = () => {
+                if (lastDimensions) {
+                    displayMeasurements(lastDimensions);
+                    runDiagnostics(lastDimensions);
+                }
+            };
+
+            window.addContent = () => {
+                messenger.sendToChild('diag-iframe', 'addContent');
+            };
+
+            window.removeContent = () => {
+                messenger.sendToChild('diag-iframe', 'removeContent');
+            };
+
+            function displayMeasurements(dims) {
+                const iframe = document.getElementById('diagIframe');
+                const iframeHeight = iframe.offsetHeight;
+                const iframeComputedHeight = parseInt(
+                    window.getComputedStyle(iframe).height
+                );
+                const iframeStyleHeight = parseInt(iframe.style.height);
+
+                const html = `
+                <div class="comparison">
+                    <div class="comparison-side">
+                        <h3>📏 Inside Iframe (Child)</h3>
+                        <div class="metric-grid">
+                            <div class="metric-label">Reported Height:</div>
+                            <div class="metric-value">${dims.height}px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Content Height:</div>
+                            <div class="metric-value">${
+                                dims.contentHeight
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Body Margins:</div>
+                            <div class="metric-value">${
+                                dims.bodyMargins.vertical
+                            }px (↕)</div>
+                            <div class="highlight">${
+                                dims.bodyMargins.top
+                            }px top + ${dims.bodyMargins.bottom}px bottom</div>
+                            
+                            <div class="metric-label">Viewport Height:</div>
+                            <div class="metric-value">${
+                                dims.viewport.height
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Has Overflow:</div>
+                            <div class="metric-value">${
+                                dims.hasVerticalOverflow ? '✓ Yes' : '✗ No'
+                            }</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Hidden Height:</div>
+                            <div class="metric-value">${
+                                dims.hiddenHeight
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Visible:</div>
+                            <div class="metric-value">${dims.visiblePercent.toFixed(
+                                1
+                            )}%</div>
+                            <div class="metric-bar">
+                                <div class="metric-bar-fill" style="width: ${
+                                    dims.visiblePercent
+                                }%"></div>
+                            </div>
+                        </div>
+                        
+                        <h4>Raw Measurements:</h4>
+                        <div class="metric-grid">
+                            <div class="metric-label">body.scrollHeight:</div>
+                            <div class="metric-value">${
+                                dims.measurements.body.scrollHeight
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">body.offsetHeight:</div>
+                            <div class="metric-value">${
+                                dims.measurements.body.offsetHeight
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">html.scrollHeight:</div>
+                            <div class="metric-value">${
+                                dims.measurements.html.scrollHeight
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">html.offsetHeight:</div>
+                            <div class="metric-value">${
+                                dims.measurements.html.offsetHeight
+                            }px</div>
+                            <div></div>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-side">
+                        <h3>🖼️ Outside Iframe (Parent)</h3>
+                        <div class="metric-grid">
+                            <div class="metric-label">iframe.offsetHeight:</div>
+                            <div class="metric-value">${iframeHeight}px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">iframe.style.height:</div>
+                            <div class="metric-value">${
+                                iframeStyleHeight || 'auto'
+                            }px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">computed height:</div>
+                            <div class="metric-value">${iframeComputedHeight}px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">Difference:</div>
+                            <div class="metric-value diff ${
+                                dims.height > iframeHeight
+                                    ? 'diff-positive'
+                                    : 'diff-negative'
+                            }">
+                                ${dims.height - iframeHeight}px
+                            </div>
+                            <div>${
+                                dims.height > iframeHeight
+                                    ? '(child reports taller)'
+                                    : '(parent is taller)'
+                            }</div>
+                        </div>
+                        
+                        <h4>Iframe Element Info:</h4>
+                        <div class="metric-grid">
+                            <div class="metric-label">border:</div>
+                            <div class="metric-value">${getIframeBorder()}px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">padding:</div>
+                            <div class="metric-value">${getIframePadding()}px</div>
+                            <div></div>
+                            
+                            <div class="metric-label">box-sizing:</div>
+                            <div class="metric-value">${getIframeBoxSizing()}</div>
+                            <div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+                document.getElementById('measurements').innerHTML = html;
+                document.getElementById('rawData').textContent = JSON.stringify(
+                    {
+                        fromChild: dims,
+                        fromParent: {
+                            offsetHeight: iframeHeight,
+                            styleHeight: iframeStyleHeight,
+                            computedHeight: iframeComputedHeight,
+                            border: getIframeBorder(),
+                            padding: getIframePadding(),
+                            boxSizing: getIframeBoxSizing(),
+                        },
+                    },
+                    null,
+                    2
+                );
+            }
+
+            function runDiagnostics(dims) {
+                const iframe = document.getElementById('diagIframe');
+                const iframeHeight = iframe.offsetHeight;
+                const diff = dims.height - iframeHeight;
+
+                let html = '';
+
+                // Check for common issues
+                if (Math.abs(diff) < 5) {
+                    html += `<div class="success">✅ Heights match within tolerance (${Math.abs(
+                        diff
+                    )}px difference)</div>`;
+                } else {
+                    html += `<div class="error">⚠️ Height mismatch detected: ${diff}px difference</div>`;
+                }
+
+                // Check body margins
+                if (dims.bodyMargins.vertical > 0) {
+                    html += `<div class="warning">
+                    ⚠️ Body has margins: ${dims.bodyMargins.vertical}px total (${dims.bodyMargins.top}px top, ${dims.bodyMargins.bottom}px bottom)
+                    <br>These margins ARE included in the reported height.
+                </div>`;
+                }
+
+                // Check iframe borders
+                const border = getIframeBorder();
+                if (border > 0) {
+                    html += `<div class="warning">
+                    ⚠️ Iframe has border: ${border}px total
+                    <br>This adds ${border}px to the outer height but is NOT reflected in offsetHeight if box-sizing is border-box.
+                </div>`;
+                }
+
+                // Check for overflow
+                if (dims.hasVerticalOverflow) {
+                    html += `<div class="warning">
+                    ⚠️ Content overflows viewport by ${dims.hiddenHeight}px
+                    <br>Only ${dims.visiblePercent.toFixed(
+                        1
+                    )}% of content is visible
+                </div>`;
+                }
+
+                // Specific diagnosis for 40px issue
+                if (Math.abs(diff - 40) < 5) {
+                    html += `<div class="error">
+                    🎯 <strong>40px mismatch detected!</strong><br>
+                    Likely causes:<br>
+                    ${
+                        dims.bodyMargins.vertical === 40
+                            ? '• <strong>Body margins exactly match: ' +
+                              dims.bodyMargins.vertical +
+                              'px</strong> ← LIKELY CULPRIT!'
+                            : '• Body margins: ' +
+                              dims.bodyMargins.vertical +
+                              'px'
+                    }
+                    <br>• Iframe border: ${border}px
+                    <br>• Check for other padding/spacing
+                </div>`;
+                }
+
+                // Recommendations
+                html += `<div class="section">
+                <h3>💡 Recommendations:</h3>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    ${
+                        dims.bodyMargins.vertical > 0
+                            ? '<li>Reset body margins in child: <code>body { margin: 0; }</code></li>'
+                            : ''
+                    }
+                    ${
+                        border > 0
+                            ? '<li>Remove iframe border: <code>iframe { border: 0; }</code></li>'
+                            : ''
+                    }
+                    ${
+                        dims.hasVerticalOverflow
+                            ? '<li>Increase iframe height or make content shorter</li>'
+                            : ''
+                    }
+                    ${
+                        Math.abs(diff) > 5
+                            ? '<li><strong>Current solution: Library is already adding ' +
+                              dims.bodyMargins.vertical +
+                              'px for body margins</strong></li>'
+                            : ''
+                    }
+                </ul>
+            </div>`;
+
+                document.getElementById('diagnostics').innerHTML = html;
+            }
+
+            function getIframeBorder() {
+                const iframe = document.getElementById('diagIframe');
+                const style = window.getComputedStyle(iframe);
+                return (
+                    parseInt(style.borderTopWidth) +
+                    parseInt(style.borderBottomWidth)
+                );
+            }
+
+            function getIframePadding() {
+                const iframe = document.getElementById('diagIframe');
+                const style = window.getComputedStyle(iframe);
+                return (
+                    parseInt(style.paddingTop) + parseInt(style.paddingBottom)
+                );
+            }
+
+            function getIframeBoxSizing() {
+                const iframe = document.getElementById('diagIframe');
+                const style = window.getComputedStyle(iframe);
+                return style.boxSizing;
+            }
+        </script>
+    </body>
+</html>

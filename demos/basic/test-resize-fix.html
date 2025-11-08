@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Resize Loop Fix Test</title>
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            .container {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                margin-top: 0;
+            }
+            button {
+                padding: 10px 16px;
+                margin-right: 10px;
+                background: #007bff;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #0056b3;
+            }
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+                margin-top: 20px;
+            }
+            .stat {
+                background: #e9ecef;
+                padding: 12px;
+                border-radius: 4px;
+            }
+            .stat-label {
+                font-size: 12px;
+                color: #6c757d;
+                font-weight: bold;
+            }
+            .stat-value {
+                font-size: 24px;
+                font-weight: bold;
+                color: #212529;
+            }
+            .log {
+                max-height: 300px;
+                overflow-y: auto;
+                background: #212529;
+                color: #00ff00;
+                padding: 15px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            }
+            .success {
+                color: #28a745;
+                font-weight: bold;
+            }
+            .warning {
+                color: #ffc107;
+                font-weight: bold;
+            }
+            iframe {
+                width: 100%;
+                border: 2px solid #ddd;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔧 Resize Loop Fix Test</h1>
+            <p>
+                This page tests the resize loop fix. Watch the stats to verify
+                no loops occur.
+            </p>
+        </div>
+
+        <div class="container">
+            <h2>📊 Statistics</h2>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Dimension Updates</div>
+                    <div class="stat-value" id="updateCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Updates/Second</div>
+                    <div class="stat-value" id="updateRate">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value" id="status" style="font-size: 16px">
+                        Waiting...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>🎮 Controls</h2>
+            <button onclick="addContent()">Add Content</button>
+            <button onclick="removeContent()">Remove Content</button>
+            <button onclick="resetStats()">Reset Stats</button>
+        </div>
+
+        <div class="container">
+            <h2>📋 Update Log (Last 20)</h2>
+            <div class="log" id="log"></div>
+        </div>
+
+        <div class="container">
+            <h2>📺 Test Iframe</h2>
+            <iframe
+                src="child.html"
+                data-messenger-id="test-iframe"
+                id="testIframe"
+                style="height: 400px"
+            ></iframe>
+        </div>
+
+        <script type="module">
+            import { ParentMessenger } from '../../src/parent/index.js';
+
+            let updateCount = 0;
+            let lastUpdateTime = Date.now();
+            let updateTimes = [];
+            let statusCheckInterval;
+
+            const messenger = new ParentMessenger({
+                autoResize: true,
+                urlSync: false, // Disable for cleaner test
+                jsonLD: false,
+                logLevel: 'info',
+
+                onIframeReady: (id, info) => {
+                    log(`✅ Iframe ready`, 'success');
+                },
+
+                onDimensionUpdate: (id, { height }) => {
+                    updateCount++;
+                    const now = Date.now();
+                    updateTimes.push(now);
+
+                    // Keep only last 10 seconds of updates
+                    updateTimes = updateTimes.filter((t) => now - t < 10000);
+
+                    const rate = (updateTimes.length / 10).toFixed(1);
+
+                    document.getElementById('updateCount').textContent =
+                        updateCount;
+                    document.getElementById('updateRate').textContent = rate;
+
+                    // Check for loop (more than 5 updates/second = potential loop)
+                    if (updateTimes.length > 50) {
+                        document.getElementById('status').innerHTML =
+                            '<span class="warning">⚠️ High Rate!</span>';
+                        log(
+                            `⚠️ High update rate detected: ${rate}/sec`,
+                            'warning'
+                        );
+                    } else if (updateCount > 0) {
+                        document.getElementById('status').innerHTML =
+                            '<span class="success">✅ Healthy</span>';
+                    }
+
+                    log(`Dimension update: ${height}px`);
+                },
+            });
+
+            // Monitor for loops
+            statusCheckInterval = setInterval(() => {
+                const recentUpdates = updateTimes.filter(
+                    (t) => Date.now() - t < 1000
+                );
+
+                if (recentUpdates.length > 10) {
+                    // More than 10 updates in last second = probable loop
+                    log(
+                        `🚨 LOOP DETECTED: ${recentUpdates.length} updates in 1 second!`,
+                        'error'
+                    );
+                    document.getElementById('status').innerHTML =
+                        '<span style="color: red;">🚨 LOOP!</span>';
+                }
+            }, 1000);
+
+            // Controls
+            window.addContent = () => {
+                messenger.sendToChild('test-iframe', 'addContent');
+                log('➕ Adding content to iframe');
+            };
+
+            window.removeContent = () => {
+                messenger.sendToChild('test-iframe', 'removeContent');
+                log('➖ Removing content from iframe');
+            };
+
+            window.resetStats = () => {
+                updateCount = 0;
+                updateTimes = [];
+                document.getElementById('updateCount').textContent = '0';
+                document.getElementById('updateRate').textContent = '0';
+                document.getElementById('status').textContent = 'Reset';
+                log('🔄 Stats reset');
+            };
+
+            // Logging
+            function log(message, type = 'info') {
+                const logDiv = document.getElementById('log');
+                const time = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+
+                let color = '#00ff00';
+                if (type === 'success') color = '#28a745';
+                if (type === 'warning') color = '#ffc107';
+                if (type === 'error') color = '#dc3545';
+
+                entry.innerHTML = `<span style="color: #6c757d;">[${time}]</span> <span style="color: ${color};">${message}</span>`;
+                logDiv.insertBefore(entry, logDiv.firstChild);
+
+                // Keep only last 20 entries
+                while (logDiv.children.length > 20) {
+                    logDiv.removeChild(logDiv.lastChild);
+                }
+            }
+
+            log('🚀 Test initialized - waiting for iframe...');
+        </script>
+    </body>
+</html>

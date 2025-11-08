@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Body Margin Test - Child</title>
+        <style>
+            /* Intentionally using browser defaults to show the issue */
+            /* The browser applies default margins to body */
+
+            body {
+                /* UNCOMMENT this line to fix the 40px issue: */
+                /* margin: 0; */
+
+                font-family: system-ui, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+
+            .content {
+                background: rgba(255, 255, 255, 0.1);
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px;
+            }
+
+            .warning {
+                background: rgba(255, 200, 0, 0.2);
+                border-left: 4px solid #ffc800;
+                padding: 15px;
+                margin: 20px;
+            }
+
+            .info-box {
+                background: rgba(0, 0, 0, 0.3);
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+                font-family: monospace;
+                font-size: 13px;
+            }
+
+            button {
+                background: rgba(255, 255, 255, 0.9);
+                color: #667eea;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                margin-right: 10px;
+            }
+
+            button:hover {
+                background: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="warning">
+            <h2>⚠️ Body Margin Demonstration</h2>
+            <p>
+                This page intentionally has default body margins to demonstrate
+                the 40px issue.
+            </p>
+        </div>
+
+        <div class="content">
+            <h1>Body Margin Test</h1>
+            <p>
+                This child iframe has browser default margins on the body
+                element.
+            </p>
+
+            <div class="info-box" id="measurements">Calculating...</div>
+
+            <h3>What's Happening?</h3>
+            <ul>
+                <li>
+                    Browser applies default margins to &lt;body&gt; (typically
+                    8px or 20px all around)
+                </li>
+                <li>
+                    When measuring from inside, we get content height WITHOUT
+                    margins
+                </li>
+                <li>
+                    When parent sets iframe height, it needs content height PLUS
+                    margins
+                </li>
+                <li>This creates a mismatch that causes resize loops</li>
+            </ul>
+
+            <h3>The Fix</h3>
+            <p>
+                The library now automatically detects and accounts for body
+                margins!
+            </p>
+
+            <button onclick="showMeasurements()">🔍 Show Measurements</button>
+            <button onclick="resetMargins()">✨ Fix Margins (set to 0)</button>
+            <button onclick="restoreMargins()">
+                ↩️ Restore Default Margins
+            </button>
+        </div>
+
+        <div class="content">
+            <h3>Current Status</h3>
+            <div class="info-box" id="status">Initializing...</div>
+        </div>
+
+        <script type="module">
+            import { ChildMessenger } from '../../src/child/index.js';
+
+            const messenger = new ChildMessenger({
+                dimensionReporting: true,
+                logLevel: 'info',
+
+                onParentReady: ({ params }) => {
+                    updateStatus('Connected to parent');
+                },
+            });
+
+            window.showMeasurements = () => {
+                const dims = messenger.getDimensions();
+                const bodyStyle = window.getComputedStyle(document.body);
+
+                document.getElementById('measurements').innerHTML = `
+                <strong>Body Margins:</strong><br>
+                • Top: ${bodyStyle.marginTop}<br>
+                • Bottom: ${bodyStyle.marginBottom}<br>
+                • Total Vertical: ${dims.bodyMargins.vertical}px<br>
+                <br>
+                <strong>Height Measurements:</strong><br>
+                • Content Height: ${dims.contentHeight}px<br>
+                • Total Height (with margins): ${dims.height}px<br>
+                • Difference: ${
+                    dims.height - dims.contentHeight
+                }px ← This is the body margin!<br>
+                <br>
+                <strong>Overflow:</strong><br>
+                • Has Overflow: ${dims.hasVerticalOverflow ? 'Yes' : 'No'}<br>
+                • Visible: ${dims.visiblePercent.toFixed(1)}%<br>
+            `;
+
+                updateStatus(
+                    `Body margins: ${dims.bodyMargins.vertical}px vertical`
+                );
+            };
+
+            window.resetMargins = () => {
+                document.body.style.margin = '0';
+                updateStatus('✅ Margins set to 0 - measuring...');
+
+                setTimeout(() => {
+                    messenger.updateDimensions();
+                    showMeasurements();
+                }, 100);
+            };
+
+            window.restoreMargins = () => {
+                document.body.style.margin = '';
+                updateStatus('↩️ Margins restored to default - measuring...');
+
+                setTimeout(() => {
+                    messenger.updateDimensions();
+                    showMeasurements();
+                }, 100);
+            };
+
+            function updateStatus(msg) {
+                document.getElementById('status').textContent = msg;
+            }
+
+            // Initial measurement
+            setTimeout(() => {
+                showMeasurements();
+            }, 500);
+        </script>
+    </body>
+</html>

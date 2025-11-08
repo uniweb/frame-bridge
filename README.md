@@ -151,6 +151,7 @@ const messenger = new ChildMessenger({
 
   // Features
   dimensionReporting: true,
+  dimensionThreshold: 1, // Minimum px change to report (default: 1, set to 0 for all changes)
   routeReporting: true,
 
   // Custom route getter (for SPAs)
@@ -285,6 +286,43 @@ function IframeEmbed() {
 
 ## Advanced Features
 
+### Accurate Dimension Reporting
+
+The library automatically accounts for body margin, padding, and border when calculating iframe height:
+
+```javascript
+// Child automatically includes all body spacing
+const dimensions = {
+  width: 1200,
+  height: 1840, // = content (1800px) + margin (20px) + padding (20px)
+
+  // Optional debug info
+  _debug: {
+    contentHeight: 1800,
+    bodySpacing: {
+      margin: 0,
+      padding: 40, // 20px top + 20px bottom
+      border: 0,
+      total: 40, // This is why height = 1840
+    },
+  },
+};
+
+// Parent callback receives the same object
+const messenger = new ParentMessenger({
+  onDimensionUpdate: (iframeId, { width, height, _debug }) => {
+    console.log(`Height: ${height}px`);
+
+    // Check debug info if needed
+    if (_debug) {
+      console.log(`Body spacing: ${_debug.bodySpacing.total}px`);
+    }
+  },
+});
+```
+
+**Common Issue Fixed**: If your iframe appears 40px shorter than expected, check for `body { padding: 20px; }` or `body { margin: 20px; }` in the child. The library now accounts for these automatically.
+
 ### Custom Actions
 
 Define bidirectional custom actions:
@@ -407,6 +445,7 @@ const messenger = new ChildMessenger({
 
 - `allowedOrigins`: `string[]` - Allowed parent origins (default: same-origin only)
 - `dimensionReporting`: `boolean` - Enable dimension reporting (default: `true`)
+- `dimensionThreshold`: `number` - Minimum dimension change in pixels to report (default: `1`)
 - `routeReporting`: `boolean` - Enable route reporting (default: `true`)
 - `getRoute`: `() => { path, title }` - Custom route getter
 - `onParentReady`: `({ params, config }) => void` - Parent ready callback
