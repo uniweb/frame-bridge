@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Bridge Demo - Child</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 2rem;
+        }
+        h2 {
+            font-size: 1.3rem;
+            margin-top: 0;
+            opacity: 0.9;
+        }
+        .route-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin-top: 10px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: white;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .param-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 4px;
+        }
+        .param-key {
+            font-weight: bold;
+            opacity: 0.8;
+            font-size: 12px;
+        }
+        .param-value {
+            margin-top: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        input {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Frame Bridge Demo - Child</h1>
+        <p>This is the child iframe. It automatically communicates with the parent frame.</p>
+        <div class="route-display">
+            <strong>Current Route:</strong> <span id="currentRoute">/</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🎮 Navigation Controls</h2>
+        <div class="controls">
+            <button onclick="navigateTo('/')">Home</button>
+            <button onclick="navigateTo('/about')">About</button>
+            <button onclick="navigateTo('/users')">Users</button>
+            <button onclick="navigateTo('/products')">Products</button>
+            <button onclick="addContent()">Add Content</button>
+            <button onclick="removeContent()">Remove Content</button>
+        </div>
+        <div class="controls" style="margin-top: 10px;">
+            <input type="text" id="customRoute" placeholder="/custom/route" />
+            <button onclick="navigateToCustom()">Navigate</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📤 Send Messages</h2>
+        <div class="controls">
+            <button onclick="sendCustomMessage()">Send Custom Message</button>
+            <button onclick="updateJsonLD()">Update JSON-LD</button>
+            <button onclick="reportDimensions()">Report Dimensions</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📥 Received from Parent</h2>
+        <div class="params" id="paramsDisplay">
+            <div class="param-card">
+                <div class="param-key">Status</div>
+                <div class="param-value">Waiting for parent...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>ℹ️ Current State</h2>
+        <div class="info" id="stateInfo">Initializing...</div>
+    </div>
+
+    <div id="dynamicContent"></div>
+
+    <script type="module">
+        import { ChildMessenger } from '../src/child/index.js';
+
+        // Simulate route state
+        let currentRoute = '/';
+
+        // Create messenger
+        const messenger = new ChildMessenger({
+            dimensionReporting: true,
+            routeReporting: true,
+            
+            getRoute: () => ({
+                path: currentRoute,
+                title: `Demo - ${currentRoute}`
+            }),
+            
+            onParentReady: ({ params, config }) => {
+                console.log('Parent ready!', { params, config });
+                updateParamsDisplay(params);
+                updateState();
+            },
+            
+            onNavigate: ({ path }) => {
+                console.log('Navigation requested:', path);
+                navigateTo(path);
+            },
+            
+            onParamUpdate: (params) => {
+                console.log('Params updated:', params);
+                updateParamsDisplay(params);
+            },
+            
+            actionHandlers: {
+                customAction: (params) => {
+                    console.log('Custom action received:', params);
+                    return { 
+                        status: 'processed',
+                        receivedAt: Date.now(),
+                        echo: params
+                    };
+                }
+            },
+            
+            metadata: {
+                version: '1.0.0',
+                type: 'demo-iframe'
+            }
+        });
+
+        // Make messenger available globally for demo buttons
+        window.messenger = messenger;
+
+        // Navigation
+        window.navigateTo = (path) => {
+            currentRoute = path;
+            document.getElementById('currentRoute').textContent = path;
+            document.title = `Demo - ${path}`;
+            
+            // Report to parent
+            messenger.updateRoute(path, document.title);
+            updateState();
+        };
+
+        window.navigateToCustom = () => {
+            const path = document.getElementById('customRoute').value;
+            if (!path) return;
+            navigateTo(path);
+        };
+
+        // Content manipulation (for dimension changes)
+        let contentCount = 0;
+        window.addContent = () => {
+            contentCount++;
+            const content = document.getElementById('dynamicContent');
+            const newBlock = document.createElement('div');
+            newBlock.className = 'container';
+            newBlock.innerHTML = `
+                <h2>📦 Dynamic Content Block #${contentCount}</h2>
+                <p>This content was added dynamically. The iframe dimensions should automatically update!</p>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+            `;
+            content.appendChild(newBlock);
+            
+            // Dimensions will be reported automatically by ResizeObserver
+        };
+
+        window.removeContent = () => {
+            const content = document.getElementById('dynamicContent');
+            if (content.lastChild) {
+                content.removeChild(content.lastChild);
+            }
+        };
+
+        // Custom message
+        window.sendCustomMessage = async () => {
+            try {
+                const response = await messenger.sendToParent('customAction', {
+                    message: 'Hello from child!',
+                    route: currentRoute,
+                    timestamp: Date.now()
+                });
+                console.log('Received response from parent:', response);
+                alert('Custom message sent! Check console for response.');
+            } catch (err) {
+                console.error('Failed to send message:', err);
+                alert('Failed to send message: ' + err.message);
+            }
+        };
+
+        // JSON-LD update
+        window.updateJsonLD = () => {
+            messenger.updateJSONLD({
+                "@context": "https://schema.org",
+                "@type": "WebPage",
+                "name": `Demo Page - ${currentRoute}`,
+                "url": currentRoute,
+                "description": "Frame Bridge demo page",
+                "dateModified": new Date().toISOString()
+            });
+            alert('JSON-LD updated! Check parent page <head> in DevTools.');
+        };
+
+        // Manual dimension report
+        window.reportDimensions = () => {
+            messenger.updateDimensions();
+            alert('Dimensions reported to parent!');
+        };
+
+        // Update params display
+        function updateParamsDisplay(params) {
+            const container = document.getElementById('paramsDisplay');
+            container.innerHTML = '';
+            
+            if (Object.keys(params).length === 0) {
+                container.innerHTML = `
+                    <div class="param-card">
+                        <div class="param-key">Status</div>
+                        <div class="param-value">No params received</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            Object.entries(params).forEach(([key, value]) => {
+                const card = document.createElement('div');
+                card.className = 'param-card';
+                card.innerHTML = `
+                    <div class="param-key">${key}</div>
+                    <div class="param-value">${JSON.stringify(value)}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Update state display
+        function updateState() {
+            const state = {
+                currentRoute,
+                params: messenger.getAllParams(),
+                config: {
+                    analyticsId: messenger.getConfig('analyticsId')
+                },
+                dimensions: getDimensions()
+            };
+            
+            document.getElementById('stateInfo').textContent = JSON.stringify(state, null, 2);
+        }
+
+        function getDimensions() {
+            return {
+                width: document.body.scrollWidth,
+                height: document.body.scrollHeight
+            };
+        }
+
+        // Initialize
+        updateState();
+    </script>
+</body>
+</html>
