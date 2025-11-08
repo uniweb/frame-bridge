@@ -227,60 +227,7 @@ export class ChildMessenger extends BaseMessenger {
      * @returns {Object} Dimensions object
      */
     getDimensions() {
-        const body = document.body;
-        const html = document.documentElement;
-        const bodyStyle = window.getComputedStyle(body);
-
-        // Get body spacing that affects total height
-        const bodyMarginTop = parseInt(bodyStyle.marginTop) || 0;
-        const bodyMarginBottom = parseInt(bodyStyle.marginBottom) || 0;
-        const bodyPaddingTop = parseInt(bodyStyle.paddingTop) || 0;
-        const bodyPaddingBottom = parseInt(bodyStyle.paddingBottom) || 0;
-        const bodyBorderTop = parseInt(bodyStyle.borderTopWidth) || 0;
-        const bodyBorderBottom = parseInt(bodyStyle.borderBottomWidth) || 0;
-
-        // Get content height (without body's own spacing)
-        const contentHeight = Math.max(
-            body.scrollHeight,
-            body.offsetHeight,
-            html.scrollHeight,
-            html.offsetHeight
-        );
-
-        const contentWidth = Math.max(
-            body.scrollWidth,
-            body.offsetWidth,
-            html.scrollWidth,
-            html.offsetWidth
-        );
-
-        // Total spacing on body element
-        const bodyVerticalSpacing =
-            bodyMarginTop +
-            bodyMarginBottom +
-            bodyPaddingTop +
-            bodyPaddingBottom +
-            bodyBorderTop +
-            bodyBorderBottom;
-
-        // True height = content + all body spacing
-        const totalHeight = contentHeight + bodyVerticalSpacing;
-
-        return {
-            width: contentWidth,
-            height: totalHeight,
-
-            // Include spacing breakdown for debugging
-            _debug: {
-                contentHeight,
-                bodySpacing: {
-                    margin: bodyMarginTop + bodyMarginBottom,
-                    padding: bodyPaddingTop + bodyPaddingBottom,
-                    border: bodyBorderTop + bodyBorderBottom,
-                    total: bodyVerticalSpacing,
-                },
-            },
-        };
+        return DimensionReporter.getDimensions();
     }
 
     /**

@@ -1,4 +1,4 @@
-import { debounce, getDimensions } from '../shared/utils.js';
+import { debounce } from '../shared/utils.js';
 import { DEFAULTS } from '../shared/constants.js';
 
 /**
@@ -94,7 +94,7 @@ export class DimensionReporter {
      * @private
      */
     reportDimensions() {
-        const dimensions = this.getDimensions();
+        const dimensions = DimensionReporter.getDimensions();
 
         // Check if dimensions changed significantly (use primary width/height)
         const widthChanged =
@@ -131,7 +131,7 @@ export class DimensionReporter {
      * Accounts for body margin and padding to get true content height
      * @returns {Object} Dimensions object
      */
-    getDimensions() {
+    static getDimensions() {
         const body = document.body;
         const html = document.documentElement;
         const bodyStyle = window.getComputedStyle(body);
