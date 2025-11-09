@@ -1,17 +1,38 @@
-# @uniweb/frame-bridge
+# Frame Bridge
 
-Promise-based iframe communication library with automatic dimension reporting, URL synchronization, and JSON-LD injection.
+Seamless URL synchronization and communication for iframe-embedded applications.
+
+## The Problem
+
+When you embed an application in an iframe (a search system, documentation site, store, etc.), the parent page URL becomes static. This breaks:
+
+- **Deep linking** - Users can't link to specific pages within the iframe
+- **SEO** - Search engines can't index individual pages in your embedded app
+- **Bookmarking** - Users can't bookmark specific states
+- **Browser navigation** - Back/forward buttons don't work as expected
+
+## The Solution
+
+Frame Bridge automatically synchronizes URLs between parent and child frames, passes parameters bidirectionally, and handles iframe dimensions and messaging - making your embedded application behave like a native part of the parent site.
+
+```html
+<!-- Parent URL: https://example.com/experts?term=biology -->
+<!-- Iframe navigates to: /search/results -->
+<!-- Parent URL updates to: https://example.com/experts?route=/search/results&term=biology -->
+```
+
+Users can now bookmark, share, and search engines can index every page in your embedded app.
 
 ## Features
 
-- 🔄 **Promise-based messaging** - Clean async/await API instead of callback hell
-- 📏 **Automatic dimension reporting** - ResizeObserver-based height updates
-- 🔗 **URL synchronization** - Keep parent URL in sync with iframe routes
-- 🔍 **JSON-LD injection** - SEO-friendly structured data from iframes
-- 🔒 **Origin validation** - Secure cross-origin communication
-- 📦 **Multiple iframes** - Support for multiple child frames
-- 🎯 **Zero config** - Works out of the box with sensible defaults
-- 🔧 **Fully customizable** - Progressive enhancement for advanced use cases
+- **URL Synchronization** - Keep parent URL in sync with iframe routes
+- **Parameter Passing** - Pass query parameters from parent to child
+- **Automatic Resizing** - ResizeObserver-based height updates
+- **Promise-based Messaging** - Clean async/await API for parent-child communication
+- **JSON-LD Injection** - SEO-friendly structured data from iframes
+- **Origin Validation** - Secure cross-origin communication
+- **Multiple Iframes** - Support for multiple child frames
+- **Zero Config** - Works out of the box with sensible defaults
 
 ## Installation
 
@@ -42,16 +63,15 @@ Or use via CDN:
     <script src="https://cdn.../parent.min.js"></script>
   </head>
   <body>
+    <!-- Embed your application -->
     <iframe src="https://app.example.com" data-messenger-id="main"></iframe>
 
     <script>
-      // Listen to iframe events
-      window.FrameBridge.on("iframeReady", (id, info) => {
-        console.log("Iframe ready:", id, info);
+      // URLs are automatically synchronized
+      window.FrameBridge.on("routeChange", (id, { path, title }) => {
+        console.log("Iframe navigated to:", path);
+        // Parent URL automatically updated to: ?route=/new-path
       });
-
-      // Send message to iframe
-      window.FrameBridge.sendToChild("main", "customAction", { foo: "bar" });
     </script>
   </body>
 </html>
@@ -66,81 +86,71 @@ Or use via CDN:
     <script src="https://cdn.../child.min.js"></script>
   </head>
   <body>
-    <h1>Hello from iframe!</h1>
+    <h1>My Embedded Application</h1>
 
     <script>
-      // Listen to parent events
-      window.FrameBridge.on("parentReady", ({ params, config }) => {
-        console.log("Parent ready, received params:", params);
+      // Access parameters passed from parent URL
+      window.FrameBridge.on("parentReady", ({ params }) => {
+        console.log("Received params:", params);
+        // If parent URL is: ?term=biology&filter=active
+        // params = { term: 'biology', filter: 'active' }
       });
 
-      // Send message to parent
-      window.FrameBridge.sendToParent("customAction", { baz: "qux" });
+      // Navigate and parent URL updates automatically
+      window.location.href = "/search/results";
     </script>
   </body>
 </html>
 ```
 
-### NPM with Custom Configuration
+That's it! URLs are synchronized, parameters are passed, and the iframe resizes automatically.
 
-**Parent:**
+## NPM Usage with Custom Configuration
+
+### Parent Setup
 
 ```javascript
 import { ParentMessenger } from "@uniweb/frame-bridge/parent";
 
 const messenger = new ParentMessenger({
   // Security
-  allowedOrigins: ["https://app.example.com", "https://*.trusted.com"],
+  allowedOrigins: ["https://app.example.com"],
 
-  // Features (all default to true)
-  autoResize: true,
+  // URL sync config (all default to true)
   urlSync: true,
-  jsonLD: true,
-
-  // URL sync config
   urlParamKey: "route", // ?route=/users/123
   preserveOtherParams: true, // Keep other query params
 
-  // Pass to children
+  // Pass config to children
   analyticsId: "GA-XXXXX",
-  syncParams: ["term", "filter"], // Only sync these params
+  syncParams: ["term", "filter"], // Only sync these params to iframe
+
+  // Features
+  autoResize: true, // Automatically resize iframe to content
+  jsonLD: true, // Inject JSON-LD from iframe into parent
 
   // Callbacks
   onIframeReady: (id, { route, dimensions }) => {
-    console.log(`Iframe ${id} ready at route ${route.path}`);
+    console.log(`Iframe ready at ${route.path}`);
   },
 
   onRouteChange: (id, { path, title }) => {
-    console.log(`Iframe ${id} navigated to ${path}`);
+    console.log(`Iframe navigated to ${path}`);
+    // Parent URL automatically updated
   },
 
   onDimensionUpdate: (id, { height }) => {
-    console.log(`Iframe ${id} height: ${height}px`);
+    console.log(`Iframe height: ${height}px`);
+    // Iframe automatically resized
   },
-
-  // Custom action handlers
-  actionHandlers: {
-    myCustomAction: (iframeId, params) => {
-      console.log("Custom action from", iframeId, params);
-      return { status: "success" };
-    },
-  },
-
-  // Logging
-  logLevel: "info", // 'silent', 'error', 'warn', 'info', 'debug'
 });
 
-// API
+// Programmatic control
 messenger.sendToChild("iframe-id", "navigate", { path: "/users/123" });
 messenger.sendToAllChildren("setTheme", { theme: "dark" });
-
-const iframe = messenger.getIframe("iframe-id");
-// Returns: { window, origin, dimensions, route, metadata }
-
-const allIframes = messenger.getAllIframes();
 ```
 
-**Child:**
+### Child Setup
 
 ```javascript
 import { ChildMessenger } from "@uniweb/frame-bridge/child";
@@ -151,7 +161,6 @@ const messenger = new ChildMessenger({
 
   // Features
   dimensionReporting: true,
-  dimensionThreshold: 1, // Minimum px change to report (default: 1, set to 0 for all changes)
   routeReporting: true,
 
   // Custom route getter (for SPAs)
@@ -162,8 +171,13 @@ const messenger = new ChildMessenger({
 
   // Callbacks
   onParentReady: ({ params, config }) => {
-    console.log("Received params from parent:", params);
+    console.log("Received params:", params);
     console.log("Analytics ID:", config.analyticsId);
+
+    // Use params to initialize your app
+    if (params.term) {
+      performSearch(params.term);
+    }
   },
 
   onNavigate: ({ path }) => {
@@ -172,41 +186,24 @@ const messenger = new ChildMessenger({
   },
 
   onParamUpdate: (params) => {
-    console.log("Params updated:", params);
+    // Parent URL params changed
+    console.log("Updated params:", params);
   },
-
-  // Custom action handlers
-  actionHandlers: {
-    myCustomAction: (params) => {
-      console.log("Custom action:", params);
-      return { status: "success" };
-    },
-  },
-
-  // Metadata to send with announce
-  metadata: {
-    version: "1.0.0",
-    type: "app",
-  },
-
-  // Logging
-  logLevel: "info",
 });
 
-// API
-messenger.updateRoute("/new-path", "New Title");
-messenger.updateDimensions(); // Manual trigger
+// Update route manually (e.g., after navigation)
+messenger.updateRoute("/search/results", "Search Results");
+
+// Update JSON-LD for SEO
 messenger.updateJSONLD({
   "@context": "https://schema.org",
-  "@type": "Article",
-  headline: "My Article",
+  "@type": "SearchResultsPage",
+  name: "Expert Search Results",
 });
 
-messenger.sendToParent("customAction", { data: "value" });
-
-const param = messenger.getParam("term");
+// Get current params
+const searchTerm = messenger.getParam("term");
 const allParams = messenger.getAllParams();
-const gaId = messenger.getConfig("analyticsId");
 ```
 
 ## React Integration
@@ -215,22 +212,24 @@ const gaId = messenger.getConfig("analyticsId");
 
 ```javascript
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { ChildMessenger } from "@uniweb/frame-bridge/child";
 
-// Create messenger once (in App.jsx or top-level component)
 const messenger = new ChildMessenger({
   getRoute: () => ({
     path: window.location.pathname,
     title: document.title,
   }),
+  onParentReady: ({ params }) => {
+    // Initialize app with params from parent URL
+    console.log("Parent params:", params);
+  },
   onNavigate: ({ path }) => {
-    // Parent requested navigation - use React Router
     window.history.pushState({}, "", path);
   },
 });
 
-// Custom hook for route reporting
+// Hook to report route changes
 export function useRouteReporter() {
   const location = useLocation();
 
@@ -241,8 +240,7 @@ export function useRouteReporter() {
 
 // In your App component
 function App() {
-  useRouteReporter(); // Automatically report route changes
-
+  useRouteReporter();
   return <Routes>{/* Your routes */}</Routes>;
 }
 ```
@@ -253,7 +251,7 @@ function App() {
 import { useEffect, useState } from "react";
 import { ParentMessenger } from "@uniweb/frame-bridge/parent";
 
-function IframeEmbed() {
+function EmbeddedApp() {
   const [iframeRoute, setIframeRoute] = useState("/");
   const [messenger] = useState(
     () =>
@@ -270,58 +268,49 @@ function IframeEmbed() {
 
   return (
     <div>
-      <p>Current iframe route: {iframeRoute}</p>
       <iframe src="https://app.example.com" />
-      <button
-        onClick={() =>
-          messenger.sendToAllChildren("navigate", { path: "/users" })
-        }
-      >
-        Go to Users
-      </button>
     </div>
   );
 }
 ```
 
+## Use Cases
+
+### Embedded Search System
+
+Parent URL: `example.com/experts?term=biology`  
+→ Iframe searches and shows results  
+→ User clicks an expert  
+→ Parent URL updates to: `example.com/experts?route=/profile/john-doe&term=biology`  
+→ URL is bookmarkable and indexable
+
+### Embedded Documentation
+
+Parent URL: `example.com/docs`  
+→ User navigates through docs  
+→ Parent URL updates to: `example.com/docs?route=/guides/getting-started`  
+→ Deep links work, search engines index individual pages
+
+### Embedded Store
+
+Parent URL: `example.com/shop`  
+→ User browses categories and products  
+→ Parent URL updates to: `example.com/shop?route=/products/widget-123`  
+→ Products are individually linkable and indexable
+
 ## Advanced Features
 
 ### Accurate Dimension Reporting
 
-The library automatically accounts for body margin, padding, and border when calculating iframe height:
+The library automatically accounts for body margin, padding, and border:
 
 ```javascript
 // Child automatically includes all body spacing
 const dimensions = {
   width: 1200,
   height: 1840, // = content (1800px) + margin (20px) + padding (20px)
-
-  // Optional debug info
-  _debug: {
-    contentHeight: 1800,
-    bodySpacing: {
-      margin: 0,
-      padding: 40, // 20px top + 20px bottom
-      border: 0,
-      total: 40, // This is why height = 1840
-    },
-  },
 };
-
-// Parent callback receives the same object
-const messenger = new ParentMessenger({
-  onDimensionUpdate: (iframeId, { width, height, _debug }) => {
-    console.log(`Height: ${height}px`);
-
-    // Check debug info if needed
-    if (_debug) {
-      console.log(`Body spacing: ${_debug.bodySpacing.total}px`);
-    }
-  },
-});
 ```
-
-**Common Issue Fixed**: If your iframe appears 40px shorter than expected, check for `body { padding: 20px; }` or `body { margin: 20px; }` in the child. The library now accounts for these automatically.
 
 ### Custom Actions
 
@@ -332,7 +321,7 @@ Define bidirectional custom actions:
 const messenger = new ParentMessenger({
   actionHandlers: {
     userSelected: (iframeId, { userId }) => {
-      console.log(`User ${userId} selected in iframe ${iframeId}`);
+      console.log(`User ${userId} selected`);
       return { success: true };
     },
   },
@@ -342,15 +331,13 @@ const messenger = new ParentMessenger({
 const messenger = new ChildMessenger({
   actionHandlers: {
     loadUser: ({ userId }) => {
-      // Load user data
       return { user: { id: userId, name: "John" } };
     },
   },
 });
 
-// Usage
-// In child: await messenger.sendToParent('userSelected', { userId: 123 });
-// In parent: const { user } = await messenger.sendToChild('iframe-1', 'loadUser', { userId: 123 });
+// Usage with promises
+const result = await messenger.sendToParent("userSelected", { userId: 123 });
 ```
 
 ### Multiple Iframes
@@ -369,7 +356,7 @@ messenger.sendToChild("iframe-1", "action", { data: "value" });
 messenger.sendToAllChildren("action", { data: "value" });
 
 // Get iframe info
-const iframe1 = messenger.getIframe("iframe-1");
+const iframe = messenger.getIframe("iframe-1");
 const allIframes = messenger.getAllIframes();
 ```
 
@@ -387,10 +374,7 @@ messenger.updateJSONLD({
   },
 });
 
-// Parent automatically injects into <head>:
-// <script type="application/ld+json" data-iframe-id="iframe-1">
-//   { ... }
-// </script>
+// Parent automatically injects into <head>
 ```
 
 ### Security
@@ -416,57 +400,62 @@ const messenger = new ChildMessenger({
 
 #### Constructor Options
 
-- `allowedOrigins`: `string[]` - Allowed child origins (default: same-origin only)
-- `autoResize`: `boolean` - Auto-resize iframes (default: `true`)
-- `urlSync`: `boolean` - Sync URL with iframe routes (default: `true`)
-- `urlParamKey`: `string` - Query param key for routes (default: `'path'`)
-- `jsonLD`: `boolean` - Enable JSON-LD injection (default: `true`)
-- `analyticsId`: `string` - GA ID to pass to children
-- `syncParams`: `string[]` - Params to sync (default: all)
-- `onIframeReady`: `(id, info) => void` - Iframe ready callback
-- `onRouteChange`: `(id, route) => void` - Route change callback
-- `onDimensionUpdate`: `(id, dimensions) => void` - Dimension update callback
-- `actionHandlers`: `object` - Custom action handlers
-- `timeout`: `number` - Message timeout (default: 5000ms)
-- `logLevel`: `string|number` - Logging level (default: `'info'`)
+| Option                | Type             | Default          | Description                 |
+| --------------------- | ---------------- | ---------------- | --------------------------- |
+| `allowedOrigins`      | `string[]`       | Same-origin only | Allowed child origins       |
+| `urlSync`             | `boolean`        | `true`           | Sync URL with iframe routes |
+| `urlParamKey`         | `string`         | `'path'`         | Query param key for routes  |
+| `preserveOtherParams` | `boolean`        | `true`           | Keep other query params     |
+| `autoResize`          | `boolean`        | `true`           | Auto-resize iframes         |
+| `jsonLD`              | `boolean`        | `true`           | Enable JSON-LD injection    |
+| `analyticsId`         | `string`         | -                | GA ID to pass to children   |
+| `syncParams`          | `string[]`       | All params       | Params to sync to iframe    |
+| `onIframeReady`       | `function`       | -                | Iframe ready callback       |
+| `onRouteChange`       | `function`       | -                | Route change callback       |
+| `onDimensionUpdate`   | `function`       | -                | Dimension update callback   |
+| `actionHandlers`      | `object`         | -                | Custom action handlers      |
+| `timeout`             | `number`         | `5000`           | Message timeout (ms)        |
+| `logLevel`            | `string\|number` | `'info'`         | Logging level               |
 
 #### Methods
 
-- `sendToChild(iframeId, action, params)`: Send message to specific iframe
-- `sendToAllChildren(action, params)`: Send message to all iframes
-- `getIframe(iframeId)`: Get iframe metadata
-- `getAllIframes()`: Get all iframe metadata
-- `setLogLevel(level)`: Change log level
-- `destroy()`: Cleanup and destroy
+- `sendToChild(iframeId, action, params)` - Send message to specific iframe
+- `sendToAllChildren(action, params)` - Send message to all iframes
+- `getIframe(iframeId)` - Get iframe metadata
+- `getAllIframes()` - Get all iframe metadata
+- `setLogLevel(level)` - Change log level
+- `destroy()` - Cleanup and destroy
 
 ### ChildMessenger
 
 #### Constructor Options
 
-- `allowedOrigins`: `string[]` - Allowed parent origins (default: same-origin only)
-- `dimensionReporting`: `boolean` - Enable dimension reporting (default: `true`)
-- `dimensionThreshold`: `number` - Minimum dimension change in pixels to report (default: `1`)
-- `routeReporting`: `boolean` - Enable route reporting (default: `true`)
-- `getRoute`: `() => { path, title }` - Custom route getter
-- `onParentReady`: `({ params, config }) => void` - Parent ready callback
-- `onNavigate`: `({ path }) => void` - Navigation request callback
-- `onParamUpdate`: `(params) => void` - Param update callback
-- `actionHandlers`: `object` - Custom action handlers
-- `metadata`: `object` - Metadata to send with announce
-- `timeout`: `number` - Message timeout (default: 5000ms)
-- `logLevel`: `string|number` - Logging level (default: `'info'`)
+| Option               | Type             | Default          | Description                    |
+| -------------------- | ---------------- | ---------------- | ------------------------------ |
+| `allowedOrigins`     | `string[]`       | Same-origin only | Allowed parent origins         |
+| `dimensionReporting` | `boolean`        | `true`           | Enable dimension reporting     |
+| `dimensionThreshold` | `number`         | `1`              | Min px change to report        |
+| `routeReporting`     | `boolean`        | `true`           | Enable route reporting         |
+| `getRoute`           | `function`       | -                | Custom route getter            |
+| `onParentReady`      | `function`       | -                | Parent ready callback          |
+| `onNavigate`         | `function`       | -                | Navigation request callback    |
+| `onParamUpdate`      | `function`       | -                | Param update callback          |
+| `actionHandlers`     | `object`         | -                | Custom action handlers         |
+| `metadata`           | `object`         | -                | Metadata to send with announce |
+| `timeout`            | `number`         | `5000`           | Message timeout (ms)           |
+| `logLevel`           | `string\|number` | `'info'`         | Logging level                  |
 
 #### Methods
 
-- `sendToParent(action, params)`: Send message to parent
-- `updateRoute(path, title)`: Manually update route
-- `updateDimensions()`: Manually trigger dimension update
-- `updateJSONLD(jsonld)`: Update JSON-LD structured data
-- `getParam(key)`: Get parameter value
-- `getAllParams()`: Get all parameters
-- `getConfig(key)`: Get config value
-- `setLogLevel(level)`: Change log level
-- `destroy()`: Cleanup and destroy
+- `sendToParent(action, params)` - Send message to parent
+- `updateRoute(path, title)` - Manually update route
+- `updateDimensions()` - Manually trigger dimension update
+- `updateJSONLD(jsonld)` - Update JSON-LD structured data
+- `getParam(key)` - Get parameter value
+- `getAllParams()` - Get all parameters
+- `getConfig(key)` - Get config value
+- `setLogLevel(level)` - Change log level
+- `destroy()` - Cleanup and destroy
 
 ## Browser Support
 
@@ -481,14 +470,3 @@ MIT © Proximify
 ## Contributing
 
 Contributions are welcome! Please open an issue or PR.
-
-## Changelog
-
-### 1.0.0
-
-- Initial release
-- Promise-based messaging
-- Automatic dimension reporting
-- URL synchronization
-- JSON-LD injection
-- Multi-iframe support
