@@ -36,6 +36,8 @@ Users can now bookmark, share, and search engines can index every page in your e
 
 ## Installation
 
+**Coming soon (not yet published to npm)**
+
 ```bash
 npm install @uniweb/frame-bridge
 ```
