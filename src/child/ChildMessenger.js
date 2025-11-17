@@ -111,6 +111,7 @@ export class ChildMessenger extends BaseMessenger {
                     dimensions: this.getDimensions(),
                     route: this.options.getRoute(),
                     metadata: this.options.metadata,
+                    jsonld: this.getJSONLD(),
                 });
 
                 this.handleAnnounceResponse(response);
@@ -353,6 +354,21 @@ export class ChildMessenger extends BaseMessenger {
         }).catch((error) => {
             this.logger.error('Failed to update JSON-LD:', error);
         });
+    }
+
+    /**
+     * Generate JSON-LD structured data
+     */
+    getJSONLD() {
+        const jsonld = {
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            name: `Demo Page`,
+            description: 'Frame Bridge demo page',
+            dateModified: new Date().toISOString(),
+        };
+
+        return jsonld;
     }
 
     /**

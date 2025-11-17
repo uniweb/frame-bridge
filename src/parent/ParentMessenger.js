@@ -86,7 +86,7 @@ export class ParentMessenger extends BaseMessenger {
      * @returns {Object} Response with initial configuration
      */
     handleAnnounce(params, source, origin) {
-        const { iframeId, dimensions, route, metadata = {} } = params;
+        const { iframeId, dimensions, route, metadata = {}, jsonld } = params;
 
         // Register iframe
         this.registry.register(iframeId, {
@@ -96,6 +96,11 @@ export class ParentMessenger extends BaseMessenger {
             route,
             metadata,
         });
+
+        // Inject JSON LD metadata if given and enabled
+        if (jsonld && this.options.jsonLD) {
+            this.jsonLDInjector.inject(iframeId, jsonld);
+        }
 
         // Trigger callback
         if (this.options.onIframeReady) {
