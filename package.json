@@ -1,56 +1,56 @@
 {
-  "name": "@uniweb/frame-bridge",
-  "version": "0.0.2",
-  "description": "Promise-based iframe communication library with automatic dimension reporting, URL sync, and JSON-LD injection",
-  "type": "module",
-  "main": "./dist/umd/index.js",
-  "module": "./dist/esm/index.js",
-  "types": "./dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/umd/index.js"
+    "name": "@uniweb/frame-bridge",
+    "version": "0.0.2",
+    "description": "Promise-based iframe communication library with automatic dimension reporting, URL sync, and JSON-LD injection",
+    "type": "module",
+    "main": "./dist/umd/index.js",
+    "module": "./dist/esm/index.js",
+    "types": "./dist/types/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/esm/index.js",
+            "require": "./dist/umd/index.js"
+        },
+        "./parent": {
+            "import": "./dist/esm/parent.js",
+            "require": "./dist/umd/parent.js"
+        },
+        "./child": {
+            "import": "./dist/esm/child.js",
+            "require": "./dist/umd/child.js"
+        }
     },
-    "./parent": {
-      "import": "./dist/esm/parent.js",
-      "require": "./dist/umd/parent.js"
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "rollup -c",
+        "dev": "rollup -c -w",
+        "test": "vitest",
+        "test:watch": "vitest --watch",
+        "prepublishOnly": "npm run build"
     },
-    "./child": {
-      "import": "./dist/esm/child.js",
-      "require": "./dist/umd/child.js"
+    "keywords": [
+        "iframe",
+        "postMessage",
+        "communication",
+        "cross-frame",
+        "messaging",
+        "embed",
+        "bridge"
+    ],
+    "author": "Proximify",
+    "license": "MIT",
+    "devDependencies": {
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-terser": "^0.4.4",
+        "rollup": "^4.9.0",
+        "vitest": "^1.1.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uniweb/frame-bridge.git"
     }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "scripts": {
-    "build": "rollup -c",
-    "dev": "rollup -c -w",
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "prepublishOnly": "npm run build"
-  },
-  "keywords": [
-    "iframe",
-    "postMessage",
-    "communication",
-    "cross-frame",
-    "messaging",
-    "embed",
-    "bridge"
-  ],
-  "author": "Proximify",
-  "license": "MIT",
-  "devDependencies": {
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.9.0",
-    "vitest": "^1.1.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/proximify/frame-bridge.git"
-  }
 }
