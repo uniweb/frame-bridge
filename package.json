@@ -3,27 +3,21 @@
     "version": "0.0.3",
     "description": "Promise-based iframe communication library with automatic dimension reporting, URL sync, and JSON-LD injection",
     "type": "module",
-    "main": "./dist/umd/index.js",
+    "main": "./dist/esm/index.js",
     "module": "./dist/esm/index.js",
-    "types": "./dist/types/index.d.ts",
+    "unpkg": "./dist/auto/parent.min.js",
+    "jsdelivr": "./dist/auto/parent.min.js",
     "exports": {
-        ".": {
-            "import": "./dist/esm/index.js",
-            "require": "./dist/umd/index.js"
-        },
-        "./parent": {
-            "import": "./dist/esm/parent.js",
-            "require": "./dist/umd/parent.js"
-        },
-        "./child": {
-            "import": "./dist/esm/child.js",
-            "require": "./dist/umd/child.js"
-        }
+        ".": "./dist/esm/index.js",
+        "./parent": "./dist/esm/parent.js",
+        "./child": "./dist/esm/child.js"
     },
+    "sideEffects": false,
     "files": [
         "dist",
         "README.md",
-        "LICENSE"
+        "LICENSE",
+        "CHANGELOG.md"
     ],
     "scripts": {
         "build": "rollup -c",
@@ -39,18 +33,36 @@
         "cross-frame",
         "messaging",
         "embed",
-        "bridge"
+        "bridge",
+        "url-sync",
+        "deep-linking",
+        "seo",
+        "json-ld",
+        "resize-observer",
+        "parent-child",
+        "cross-origin"
     ],
-    "author": "Proximify",
+    "author": {
+        "name": "Proximify",
+        "url": "https://proximify.com"
+    },
     "license": "MIT",
-    "devDependencies": {
-        "@rollup/plugin-node-resolve": "^15.2.3",
-        "@rollup/plugin-terser": "^0.4.4",
-        "rollup": "^4.9.0",
-        "vitest": "^1.1.0"
+    "homepage": "https://github.com/uniweb/frame-bridge#readme",
+    "bugs": {
+        "url": "https://github.com/uniweb/frame-bridge/issues"
     },
     "repository": {
         "type": "git",
         "url": "https://github.com/uniweb/frame-bridge.git"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "devDependencies": {
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-terser": "^0.4.4",
+        "jsdom": "^27.3.0",
+        "rollup": "^4.9.0",
+        "vitest": "^1.1.0"
     }
 }

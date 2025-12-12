@@ -49,42 +49,6 @@ export default [
         },
     },
 
-    // UMD build - main entry point
-    {
-        ...baseConfig,
-        input: 'src/index.js',
-        output: {
-            file: 'dist/umd/index.js',
-            format: 'umd',
-            name: 'FrameBridge',
-            banner,
-        },
-    },
-
-    // UMD build - parent only
-    {
-        ...baseConfig,
-        input: 'src/parent/index.js',
-        output: {
-            file: 'dist/umd/parent.js',
-            format: 'umd',
-            name: 'FrameBridgeParent',
-            banner,
-        },
-    },
-
-    // UMD build - child only
-    {
-        ...baseConfig,
-        input: 'src/child/index.js',
-        output: {
-            file: 'dist/umd/child.js',
-            format: 'umd',
-            name: 'FrameBridgeChild',
-            banner,
-        },
-    },
-
     // IIFE auto-init - parent (for CDN/script tag)
     {
         ...baseConfig,
