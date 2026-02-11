@@ -8,9 +8,9 @@
     "unpkg": "./dist/auto/parent.min.js",
     "jsdelivr": "./dist/auto/parent.min.js",
     "exports": {
-        ".": "./dist/esm/index.js",
-        "./parent": "./dist/esm/parent.js",
-        "./child": "./dist/esm/child.js"
+        ".": "./src/index.js",
+        "./parent": "./src/parent/index.js",
+        "./child": "./src/child/index.js"
     },
     "sideEffects": false,
     "files": [

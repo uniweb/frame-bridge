@@ -291,11 +291,18 @@ export class ChildMessenger extends BaseMessenger {
             return Promise.resolve();
         }
 
+        // Use parent's origin (from allowedOrigins) for cross-origin support.
+        // '*' wildcard is used when allowedOrigins includes '*'.
+        const allowed = this.validator.getAllowedOrigins();
+        const targetOrigin = allowed.includes('*')
+            ? '*'
+            : (allowed[0] || window.location.origin);
+
         return this.sendMessage(
             window.parent,
             action,
             params,
-            window.location.origin
+            targetOrigin
         );
     }
 
