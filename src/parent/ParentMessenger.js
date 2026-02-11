@@ -224,6 +224,13 @@ export class ParentMessenger extends BaseMessenger {
             this.urlSync.updateFromIframe(iframeId, path, title);
         }
 
+        // When urlSync is enabled, onRouteChange is triggered via
+        // urlSync.updateFromIframe → handleURLChange. When disabled,
+        // call directly since the urlSync path is skipped.
+        if (!this.options.urlSync && this.options.onRouteChange) {
+            this.options.onRouteChange(iframeId, { path, title });
+        }
+
         return { status: 'ok' };
     }
 
