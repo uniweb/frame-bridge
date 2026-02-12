@@ -1,6 +1,6 @@
 import { ACTIONS, DEFAULTS, ERRORS } from "./constants.js";
 import { OriginValidator } from "./OriginValidator.js";
-import { Logger, generateMessageId, deepFreeze } from "./utils.js";
+import { Logger, generateMessageId } from "./utils.js";
 
 /**
  * Base class for handling message communication between parent and child windows
@@ -45,9 +45,6 @@ export class BaseMessenger {
       ...this.getBuiltInHandlers(),
       ...actionHandlers,
     };
-
-    // Freeze action handlers to prevent modification
-    deepFreeze(this.actionHandlers);
 
     // Start listening for messages
     this.boundHandleMessage = this.handleMessage.bind(this);
@@ -231,6 +228,23 @@ export class BaseMessenger {
       writable: false,
       configurable: false,
     });
+  }
+
+  /**
+   * Set a single action handler (add or replace)
+   * @param {string} action - Action name
+   * @param {Function} handler - Handler function
+   */
+  setHandler(action, handler) {
+    this.actionHandlers[action] = handler;
+  }
+
+  /**
+   * Set multiple action handlers (add or replace)
+   * @param {Object} handlers - Map of action names to handler functions
+   */
+  setHandlers(handlers) {
+    Object.assign(this.actionHandlers, handlers);
   }
 
   /**

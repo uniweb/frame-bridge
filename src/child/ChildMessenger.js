@@ -17,7 +17,6 @@ export class ChildMessenger extends BaseMessenger {
      * @param {Function} options.getRoute - Function to get current route (default: pathname)
      * @param {Function} options.onParentReady - Callback when parent responds to announce
      * @param {Function} options.onNavigate - Callback when parent requests navigation
-     * @param {Function} options.onParamUpdate - Callback when params received from parent
      * @param {Object} options.metadata - Additional metadata to send with announce
      * @param {Object} options.actionHandlers - Custom action handlers
      * @param {number} options.timeout - Message timeout
@@ -47,16 +46,15 @@ export class ChildMessenger extends BaseMessenger {
 
         // Store options
         this.options = {
-            dimensionReporting: options.dimensionReporting !== false,
+            dimensionReporting: options.dimensionReporting === true,
             dimensionThreshold:
                 options.dimensionThreshold !== undefined
                     ? options.dimensionThreshold
                     : 1,
-            routeReporting: options.routeReporting !== false,
+            routeReporting: options.routeReporting === true,
             getRoute: options.getRoute || defaultRouteGetter,
             onParentReady: options.onParentReady || null,
             onNavigate: options.onNavigate || null,
-            onParamUpdate: options.onParamUpdate || null,
             metadata: options.metadata || {},
         };
 
@@ -67,10 +65,6 @@ export class ChildMessenger extends BaseMessenger {
         // Initialize reporters (will be started after announce)
         this.dimensionReporter = null;
         this.routeReporter = null;
-
-        // Store params from parent
-        this.params = {};
-        this.config = {};
 
         // Announce to parent
         this.announce();
@@ -85,8 +79,6 @@ export class ChildMessenger extends BaseMessenger {
         return {
             ...super.getBuiltInHandlers(),
             [ACTIONS.NAVIGATE]: this.handleNavigate.bind(this),
-            [ACTIONS.SET_PARAMS]: this.handleSetParams.bind(this),
-            [ACTIONS.SET_ANALYTICS_ID]: this.handleSetAnalyticsId.bind(this),
         };
     }
 
@@ -111,7 +103,6 @@ export class ChildMessenger extends BaseMessenger {
                     dimensions: this.getDimensions(),
                     route: this.options.getRoute(),
                     metadata: this.options.metadata,
-                    jsonld: this.getJSONLD(),
                 });
 
                 this.handleAnnounceResponse(response);
@@ -139,15 +130,9 @@ export class ChildMessenger extends BaseMessenger {
      * @param {Object} response - Response data
      */
     handleAnnounceResponse(response) {
-        const { params = {}, config = {}, initialRoute } = response;
+        const { initialRoute } = response;
 
-        this.params = params;
-        this.config = config;
-
-        this.logger.info('Announce successful, received config:', {
-            params,
-            config,
-        });
+        this.logger.info('Announce successful');
 
         // Start reporters
         if (this.options.dimensionReporting) {
@@ -166,13 +151,8 @@ export class ChildMessenger extends BaseMessenger {
             }
         }
 
-        // Trigger callbacks
-        if (this.options.onParamUpdate) {
-            this.options.onParamUpdate(params);
-        }
-
         if (this.options.onParentReady) {
-            this.options.onParentReady({ params, config });
+            this.options.onParentReady(response);
         }
     }
 
@@ -244,37 +224,6 @@ export class ChildMessenger extends BaseMessenger {
         if (this.options.onNavigate) {
             this.options.onNavigate({ path });
         }
-
-        return { status: 'ok' };
-    }
-
-    /**
-     * Handle set params from parent
-     * @private
-     * @param {Object} params - Parameters
-     * @returns {Object} Acknowledgment
-     */
-    handleSetParams(params) {
-        this.params = { ...this.params, ...params };
-        this.logger.debug('Params updated:', this.params);
-
-        if (this.options.onParamUpdate) {
-            this.options.onParamUpdate(this.params);
-        }
-
-        return { status: 'ok' };
-    }
-
-    /**
-     * Handle set analytics ID from parent
-     * @private
-     * @param {Object} params - Analytics parameters
-     * @returns {Object} Acknowledgment
-     */
-    handleSetAnalyticsId(params) {
-        const { gaId } = params;
-        this.config.analyticsId = gaId;
-        this.logger.debug('Analytics ID set:', gaId);
 
         return { status: 'ok' };
     }
@@ -361,47 +310,6 @@ export class ChildMessenger extends BaseMessenger {
         }).catch((error) => {
             this.logger.error('Failed to update JSON-LD:', error);
         });
-    }
-
-    /**
-     * Generate JSON-LD structured data
-     */
-    getJSONLD() {
-        const jsonld = {
-            '@context': 'https://schema.org',
-            '@type': 'WebPage',
-            name: `Demo Page`,
-            description: 'Frame Bridge demo page',
-            dateModified: new Date().toISOString(),
-        };
-
-        return jsonld;
-    }
-
-    /**
-     * Get parameter value
-     * @param {string} key - Parameter key
-     * @returns {*} Parameter value
-     */
-    getParam(key) {
-        return this.params[key];
-    }
-
-    /**
-     * Get all parameters
-     * @returns {Object} All parameters
-     */
-    getAllParams() {
-        return { ...this.params };
-    }
-
-    /**
-     * Get configuration value
-     * @param {string} key - Config key
-     * @returns {*} Config value
-     */
-    getConfig(key) {
-        return this.config[key];
     }
 
     /**

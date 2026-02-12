@@ -13,12 +13,9 @@ export const ACTIONS = {
     UPDATE_DIMENSIONS: 'updateDimensions',
     UPDATE_ROUTE: 'updateRoute',
     UPDATE_JSONLD: 'updateJSONLD',
-    REQUEST_PARAM: 'requestParam',
 
     // Parent → Child actions
     NAVIGATE: 'navigate',
-    SET_PARAMS: 'setParams',
-    SET_ANALYTICS_ID: 'setAnalyticsId',
 };
 
 /**

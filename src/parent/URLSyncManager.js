@@ -65,11 +65,6 @@ export class URLSyncManager {
         }
 
         this.logger.debug('URL updated from iframe:', { iframeId, path, title });
-
-        // Trigger callback
-        if (this.onRouteChange) {
-            this.onRouteChange(iframeId, { path, title });
-        }
     }
 
     /**

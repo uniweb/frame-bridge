@@ -44,20 +44,19 @@ export class RouteReporter {
      * @private
      */
     interceptHistoryMethods() {
-        const original = {
-            pushState: window.history.pushState.bind(window.history),
-            replaceState: window.history.replaceState.bind(window.history),
-        };
+        // Store originals for restoration on stop()
+        this.originalPushState = window.history.pushState.bind(window.history);
+        this.originalReplaceState = window.history.replaceState.bind(window.history);
 
         // Wrap pushState
         window.history.pushState = (...args) => {
-            original.pushState(...args);
+            this.originalPushState(...args);
             this.reportRoute();
         };
 
         // Wrap replaceState
         window.history.replaceState = (...args) => {
-            original.replaceState(...args);
+            this.originalReplaceState(...args);
             this.reportRoute();
         };
 
@@ -109,6 +108,11 @@ export class RouteReporter {
     stop() {
         if (this.boundHandlePopState) {
             window.removeEventListener('popstate', this.boundHandlePopState);
+        }
+        // Restore original history methods
+        if (this.originalPushState) {
+            window.history.pushState = this.originalPushState;
+            window.history.replaceState = this.originalReplaceState;
         }
         this.logger.debug('Route reporting stopped');
     }

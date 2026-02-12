@@ -16,7 +16,6 @@ export class ParentMessenger extends BaseMessenger {
      * @param {string} options.urlParamKey - Query parameter key for route path (default: 'path')
      * @param {boolean} options.preserveOtherParams - Keep other query params when syncing
      * @param {boolean} options.jsonLD - Enable JSON-LD injection from iframes
-     * @param {string} options.analyticsId - Google Analytics ID to pass to children
      * @param {string[]|null} options.syncParams - Parameters to sync to children (null = all)
      * @param {Function} options.onIframeReady - Callback when iframe announces itself
      * @param {Function} options.onDimensionUpdate - Callback when iframe dimensions change
@@ -36,10 +35,9 @@ export class ParentMessenger extends BaseMessenger {
 
         // Store options
         this.options = {
-            autoResize: options.autoResize !== false,
-            urlSync: options.urlSync !== false,
-            jsonLD: options.jsonLD !== false,
-            analyticsId: options.analyticsId || null,
+            autoResize: options.autoResize === true,
+            urlSync: options.urlSync === true,
+            jsonLD: options.jsonLD === true,
             syncParams: options.syncParams || null,
             onIframeReady: options.onIframeReady || null,
             onDimensionUpdate: options.onDimensionUpdate || null,
@@ -115,9 +113,6 @@ export class ParentMessenger extends BaseMessenger {
         // Prepare response with initial configuration
         const response = {
             iframeId,
-            config: {
-                analyticsId: this.options.analyticsId,
-            },
         };
 
         // Add URL parameters if syncing
@@ -224,10 +219,8 @@ export class ParentMessenger extends BaseMessenger {
             this.urlSync.updateFromIframe(iframeId, path, title);
         }
 
-        // When urlSync is enabled, onRouteChange is triggered via
-        // urlSync.updateFromIframe → handleURLChange. When disabled,
-        // call directly since the urlSync path is skipped.
-        if (!this.options.urlSync && this.options.onRouteChange) {
+        // Always fire onRouteChange directly
+        if (this.options.onRouteChange) {
             this.options.onRouteChange(iframeId, { path, title });
         }
 
@@ -262,7 +255,7 @@ export class ParentMessenger extends BaseMessenger {
             this.sendToAllChildren(ACTIONS.NAVIGATE, { path: data.path });
         }
 
-        // Trigger user callback
+        // Fire onRouteChange for popstate events (embedding parent needs this)
         if (this.options.onRouteChange) {
             this.options.onRouteChange(iframeId, data);
         }

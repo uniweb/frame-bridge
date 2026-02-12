@@ -129,27 +129,6 @@ export function sleep(ms) {
 }
 
 /**
- * Deep freeze an object
- * @param {Object} obj - Object to freeze
- * @returns {Object} Frozen object
- */
-export function deepFreeze(obj) {
-    Object.freeze(obj);
-
-    Object.getOwnPropertyNames(obj).forEach((prop) => {
-        if (
-            obj[prop] !== null &&
-            (typeof obj[prop] === 'object' || typeof obj[prop] === 'function') &&
-            !Object.isFrozen(obj[prop])
-        ) {
-            deepFreeze(obj[prop]);
-        }
-    });
-
-    return obj;
-}
-
-/**
  * Safe JSON parse with fallback
  * @param {string} json - JSON string to parse
  * @param {*} fallback - Fallback value if parse fails

@@ -19,7 +19,6 @@ import { isInIframe } from '../shared/utils.js';
     const eventCallbacks = {
         parentReady: [],
         navigate: [],
-        paramUpdate: [],
     };
 
     // Wrap messenger with event API
@@ -83,29 +82,6 @@ import { isInIframe } from '../shared/utils.js';
         updateJSONLD(jsonld) {
             messenger.updateJSONLD(jsonld);
         },
-
-        /**
-         * Get parameter
-         * @param {string} key - Parameter key
-         */
-        getParam(key) {
-            return messenger.getParam(key);
-        },
-
-        /**
-         * Get all parameters
-         */
-        getAllParams() {
-            return messenger.getAllParams();
-        },
-
-        /**
-         * Get config value
-         * @param {string} key - Config key
-         */
-        getConfig(key) {
-            return messenger.getConfig(key);
-        },
     };
 
     // Wire up callbacks to trigger events
@@ -115,10 +91,6 @@ import { isInIframe } from '../shared/utils.js';
 
     messenger.options.onNavigate = (data) => {
         eventCallbacks.navigate.forEach((cb) => cb(data));
-    };
-
-    messenger.options.onParamUpdate = (params) => {
-        eventCallbacks.paramUpdate.forEach((cb) => cb(params));
     };
 
     // Expose on window

@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Frame Bridge is an iframe communication library that synchronizes URLs between parent and child frames, passes parameters bidirectionally, and handles dimension reporting and JSON-LD injection for SEO.
-
-**Key use case:** When embedding applications in iframes (search systems, docs, stores), the parent URL typically stays static, breaking deep linking, SEO, and bookmarks. This library solves that by keeping parent URLs in sync with iframe routes.
+Frame Bridge is an iframe communication library for Uniweb. Its **primary** use case is the editor designer mode — a rich bidirectional protocol between the editor parent and the dynamic-runtime child. Its **secondary** use case is embedding (a non-Uniweb parent hosting a Uniweb iframe).
 
 ## Development Commands
 
@@ -47,21 +45,45 @@ The library is split into **parent** and **child** messengers that communicate v
 - `constants.js` - Action types, defaults, error messages
 - `utils.js` - Logger, debounce, iframe detection utilities
 
+### Defaults
+
+All embedding features default to **off**:
+- `ParentMessenger`: `autoResize`, `urlSync`, `jsonLD` — all `false` by default
+- `ChildMessenger`: `dimensionReporting`, `routeReporting` — all `false` by default
+
+The auto-init IIFE scripts explicitly opt in (`autoResize: true`, etc.) for the embedding use case. The editor uses the defaults (all off) and only enables what it needs.
+
+### Mutable Handlers
+
+Action handlers can be updated after construction via `setHandler(action, fn)` or `setHandlers({ action: fn, ... })`. This is the recommended pattern for React components — construct the messenger once in `useState`, then register handlers in `useEffect`:
+
+```jsx
+const [messenger] = useState(() => new ChildMessenger({ ... }))
+
+useEffect(() => {
+  messenger.setHandlers({
+    myAction: (params) => { /* can access current React state */ },
+  })
+  return () => messenger.destroy()
+}, [messenger])
+```
+
 ### Message Flow
 
 1. **Initialization:**
    - Child iframe announces itself to parent (`ANNOUNCE` action)
-   - Parent responds with config (analytics ID, URL params)
-   - Child receives initial params and starts reporters
+   - Parent responds with iframe ID and optional initial route
+   - Child starts dimension/route reporters if enabled
 
-2. **URL Sync:**
+2. **URL Sync (opt-in):**
    - Child navigates internally → sends `UPDATE_ROUTE` to parent
-   - Parent updates URL query param (e.g., `?route=/new-path`)
+   - `onRouteChange` always fires directly from `handleRouteUpdate`
+   - If `urlSync` is enabled, parent also updates URL query param
    - Browser back/forward → parent sends `NAVIGATE` to child
 
-3. **Dimension Updates:**
+3. **Dimension Updates (opt-in):**
    - ResizeObserver detects changes → child sends `UPDATE_DIMENSIONS`
-   - Parent auto-resizes iframe height
+   - Parent auto-resizes iframe height if `autoResize` enabled
 
 ### Build Outputs
 
@@ -91,7 +113,10 @@ Iframes are identified via `data-messenger-id` attribute or auto-generated from 
 `OriginValidator` checks message origins against allowedOrigins (supports wildcards like `https://*.example.com`). Defaults to same-origin only.
 
 ### Retries
-Child announce has retry logic (3 attempts, 1s delay) in case parent isn't ready.
+Child announce has retry logic (3 attempts, 500ms delay) in case parent isn't ready.
+
+### RouteReporter Cleanup
+`RouteReporter.stop()` restores original `pushState`/`replaceState` methods, preventing leaked history interception after the reporter is destroyed.
 
 ## Testing
 
