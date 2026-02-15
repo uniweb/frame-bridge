@@ -121,15 +121,15 @@ export class BaseMessenger {
    * @param {MessageEvent} event - Message event
    */
   async handleMessage(event) {
-    // Validate origin
-    if (!this.validator.validate(event.origin)) {
+    const { id, action, params, sender } = event.data || {};
+
+    // Ignore messages not from FrameBridge (e.g. Vite HMR, browser extensions)
+    if (sender !== "FrameBridge") {
       return;
     }
 
-    const { id, action, params, sender } = event.data || {};
-
-    // Ignore messages not from FrameBridge
-    if (sender !== "FrameBridge") {
+    // Validate origin (only for FrameBridge messages)
+    if (!this.validator.validate(event.origin)) {
       return;
     }
 
