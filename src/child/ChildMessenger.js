@@ -66,8 +66,10 @@ export class ChildMessenger extends BaseMessenger {
         this.dimensionReporter = null;
         this.routeReporter = null;
 
-        // Announce to parent
-        this.announce();
+        // Announce to parent (can be deferred with autoAnnounce: false)
+        if (options.autoAnnounce !== false) {
+            this.announce();
+        }
     }
 
     /**
@@ -83,8 +85,10 @@ export class ChildMessenger extends BaseMessenger {
     }
 
     /**
-     * Announce presence to parent with retries
-     * @private
+     * Announce presence to parent with retries.
+     * Called automatically unless `autoAnnounce: false` was passed to the constructor.
+     * When using `autoAnnounce: false`, call this manually after registering
+     * action handlers via `setHandlers()` to avoid race conditions.
      */
     async announce() {
         const maxRetries = DEFAULTS.ANNOUNCE_RETRIES;
