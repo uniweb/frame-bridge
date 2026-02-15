@@ -209,8 +209,12 @@ export class BaseMessenger {
 
     this.logger.debug("Sending response:", { action, messageId });
 
+    // Null-origin iframes (srcdoc, data: URLs) can only be reached with '*'.
+    // postMessage(data, "null") is silently discarded per the HTML spec.
+    const origin = targetOrigin === "null" ? "*" : targetOrigin;
+
     try {
-      targetWindow.postMessage(message, targetOrigin);
+      targetWindow.postMessage(message, origin);
     } catch (error) {
       this.logger.error("Failed to send response:", error);
     }

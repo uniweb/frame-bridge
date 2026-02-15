@@ -302,7 +302,10 @@ export class ParentMessenger extends BaseMessenger {
             );
         }
 
-        return this.sendMessage(iframe.window, action, params, iframe.origin);
+        // Null-origin iframes (srcdoc, data: URLs) can only be reached with '*'.
+        // postMessage(data, "null") is silently discarded per the HTML spec.
+        const targetOrigin = iframe.origin === 'null' ? '*' : iframe.origin;
+        return this.sendMessage(iframe.window, action, params, targetOrigin);
     }
 
     /**
