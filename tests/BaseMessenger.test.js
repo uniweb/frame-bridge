@@ -66,7 +66,7 @@ describe('BaseMessenger', () => {
     describe('sendMessage', () => {
         it('should send a message and return a promise', async () => {
             messenger = new BaseMessenger({ isChildFrame: false });
-            
+
             const targetWindow = {
                 postMessage: vi.fn(),
             };
@@ -79,6 +79,9 @@ describe('BaseMessenger', () => {
 
             expect(promise).toBeInstanceOf(Promise);
             expect(targetWindow.postMessage).toHaveBeenCalled();
+
+            // Prevent unhandled rejection when messenger.destroy() rejects pending promises
+            promise.catch(() => {});
         });
 
         it('should timeout if no response received', async () => {
