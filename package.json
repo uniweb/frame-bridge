@@ -1,6 +1,6 @@
 {
     "name": "@uniweb/frame-bridge",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Promise-based iframe communication library with automatic dimension reporting, URL sync, and JSON-LD injection",
     "type": "module",
     "main": "./dist/esm/index.js",
