@@ -9,6 +9,7 @@ This directory contains demonstrations of the @uniweb/frame-bridge library.
 The demos need to be served via HTTP (not opened directly as `file://`) due to iframe security restrictions.
 
 **Using Python 3:**
+
 ```bash
 # From the project root
 python3 -m http.server 8000
@@ -17,6 +18,7 @@ python3 -m http.server 8000
 ```
 
 **Using Node.js (with npx):**
+
 ```bash
 # From the project root
 npx http-server -p 8000
@@ -25,6 +27,7 @@ npx http-server -p 8000
 ```
 
 **Using PHP:**
+
 ```bash
 # From the project root
 php -S localhost:8000
@@ -49,6 +52,7 @@ python3 -m http.server 8000
 ### Basic Demo (`/demos/basic/`)
 
 Demonstrates core functionality:
+
 - Parent-child communication
 - Automatic dimension reporting
 - URL synchronization
@@ -58,10 +62,12 @@ Demonstrates core functionality:
 - Dynamic content addition/removal
 
 **Files:**
+
 - `parent.html` - Parent frame with controls
 - `child.html` - Child iframe with simulated routing
 
 **What to try:**
+
 1. Click navigation buttons in either parent or child
 2. Watch URL parameter sync in browser address bar
 3. Add/remove content in child to see auto-resize
@@ -76,7 +82,7 @@ Demonstrates core functionality:
 3. Import the library:
    ```html
    <script type="module">
-     import { ParentMessenger } from '../../src/parent/index.js';
+     import { ParentMessenger } from '../../src/parent/index.js'
      // or for built version:
      // import { ParentMessenger } from '../../dist/esm/parent.js';
    </script>
@@ -85,15 +91,18 @@ Demonstrates core functionality:
 ## Troubleshooting
 
 ### "Failed to load module" errors
+
 - Make sure you're serving via HTTP, not opening files directly
 - Check that paths to `../src/` are correct relative to your demo
 
 ### Messages not being received
+
 - Check browser console for origin validation errors
 - Verify both parent and child are using the same origin (localhost:8000)
 - Check that `allowedOrigins` configuration matches your setup
 
 ### ResizeObserver warnings
+
 - These are normal and don't affect functionality
 - They occur when content changes rapidly
 
@@ -107,6 +116,7 @@ Demonstrates core functionality:
 ## Next Steps
 
 After trying the basic demo:
+
 1. Review the code to understand the API
 2. Try modifying the `actionHandlers` to add custom actions
 3. Experiment with different configuration options

@@ -13,29 +13,29 @@ npm install @uniweb/frame-bridge
 ### Parent Frame (Simple)
 
 ```javascript
-import { ParentMessenger } from '@uniweb/frame-bridge/parent';
+import { ParentMessenger } from '@uniweb/frame-bridge/parent'
 
 // Create with defaults - that's it!
-const messenger = new ParentMessenger();
+const messenger = new ParentMessenger()
 
 // Optional: Listen to events
 messenger.options.onIframeReady = (id, info) => {
-  console.log('Iframe ready:', id, info.route);
-};
+  console.log('Iframe ready:', id, info.route)
+}
 ```
 
 ### Child Frame (Simple)
 
 ```javascript
-import { ChildMessenger } from '@uniweb/frame-bridge/child';
+import { ChildMessenger } from '@uniweb/frame-bridge/child'
 
 // Create with defaults - that's it!
-const messenger = new ChildMessenger();
+const messenger = new ChildMessenger()
 
 // Optional: Listen to parent
 messenger.options.onParentReady = ({ params, config }) => {
-  console.log('Received params:', params);
-};
+  console.log('Received params:', params)
+}
 ```
 
 ## What Happens Automatically
@@ -46,7 +46,7 @@ With the simple setup above, you automatically get:
 ✅ **Auto-resize** - Parent iframe resizes to fit content  
 ✅ **URL Sync** - Child route changes update parent URL  
 ✅ **JSON-LD Injection** - SEO metadata injected in parent  
-✅ **Origin Validation** - Secure same-origin messaging  
+✅ **Origin Validation** - Secure same-origin messaging
 
 ## Common Use Cases
 
@@ -54,14 +54,14 @@ With the simple setup above, you automatically get:
 
 ```javascript
 // Parent
-messenger.sendToChild('iframe-id', 'navigate', { path: '/users' });
+messenger.sendToChild('iframe-id', 'navigate', { path: '/users' })
 ```
 
 ### Send Message from Child to Parent
 
 ```javascript
 // Child
-messenger.sendToParent('userSelected', { userId: 123 });
+messenger.sendToParent('userSelected', { userId: 123 })
 ```
 
 ### Handle Custom Actions
@@ -71,51 +71,51 @@ messenger.sendToParent('userSelected', { userId: 123 });
 const messenger = new ParentMessenger({
   actionHandlers: {
     userSelected: (iframeId, { userId }) => {
-      console.log(`User ${userId} selected in ${iframeId}`);
-      return { success: true };
+      console.log(`User ${userId} selected in ${iframeId}`)
+      return { success: true }
     }
   }
-});
+})
 
 // Child
 const messenger = new ChildMessenger({
   actionHandlers: {
     loadUser: ({ userId }) => {
       // Load user...
-      return { user: { id: userId, name: 'John' } };
+      return { user: { id: userId, name: 'John' } }
     }
   }
-});
+})
 ```
 
 ### React Integration
 
 ```javascript
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ChildMessenger } from '@uniweb/frame-bridge/child';
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+import { ChildMessenger } from '@uniweb/frame-bridge/child'
 
 // Create once at app level
 const messenger = new ChildMessenger({
   onNavigate: ({ path }) => {
     // Use React Router navigation
-    window.history.pushState({}, '', path);
+    window.history.pushState({}, '', path)
   }
-});
+})
 
 // Hook for auto-reporting routes
 function useRouteReporter() {
-  const location = useLocation();
-  
+  const location = useLocation()
+
   useEffect(() => {
-    messenger.updateRoute(location.pathname);
-  }, [location]);
+    messenger.updateRoute(location.pathname)
+  }, [location])
 }
 
 // Use in your App component
 function App() {
-  useRouteReporter();
-  return <Routes>{/* your routes */}</Routes>;
+  useRouteReporter()
+  return <Routes>{/* your routes */}</Routes>
 }
 ```
 
@@ -127,12 +127,12 @@ function App() {
 // Parent
 new ParentMessenger({
   allowedOrigins: ['https://app.example.com', 'https://*.trusted.com']
-});
+})
 
 // Child
 new ChildMessenger({
   allowedOrigins: ['https://parent.example.com']
-});
+})
 ```
 
 ### Features
@@ -140,17 +140,17 @@ new ChildMessenger({
 ```javascript
 // Parent
 new ParentMessenger({
-  autoResize: true,        // Auto-resize iframes
-  urlSync: true,           // Sync URLs with iframe routes
-  jsonLD: true,            // Inject JSON-LD from iframes
-  analyticsId: 'GA-XXX',   // Pass to children
-});
+  autoResize: true, // Auto-resize iframes
+  urlSync: true, // Sync URLs with iframe routes
+  jsonLD: true, // Inject JSON-LD from iframes
+  analyticsId: 'GA-XXX' // Pass to children
+})
 
 // Child
 new ChildMessenger({
-  dimensionReporting: true,  // Report dimensions
-  routeReporting: true,      // Report route changes
-});
+  dimensionReporting: true, // Report dimensions
+  routeReporting: true // Report route changes
+})
 ```
 
 ## Testing Your Setup
@@ -163,15 +163,18 @@ new ChildMessenger({
 ## Troubleshooting
 
 **Messages not working?**
+
 - Check origins match (use `http://localhost:3000`, not `localhost:3000`)
 - Look for origin validation errors in console
 - Verify both parent and child initialized
 
 **Auto-resize not working?**
+
 - Check `autoResize: true` in parent
 - Verify child is reporting dimensions (check logs)
 
 **URL not syncing?**
+
 - Check `urlSync: true` in parent
 - Check `routeReporting: true` in child
 - Look at browser URL bar for `?path=...` parameter

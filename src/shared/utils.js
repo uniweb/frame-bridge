@@ -1,42 +1,42 @@
-import { DEFAULTS } from './constants.js';
+import { DEFAULTS } from './constants.js'
 
 /**
  * Logger utility with configurable verbosity
  */
 export class Logger {
-    constructor(level = DEFAULTS.LOG_LEVEL, prefix = 'FrameBridge') {
-        this.level = level;
-        this.prefix = prefix;
-        this.levels = DEFAULTS.LOG_LEVELS;
-    }
+  constructor(level = DEFAULTS.LOG_LEVEL, prefix = 'FrameBridge') {
+    this.level = level
+    this.prefix = prefix
+    this.levels = DEFAULTS.LOG_LEVELS
+  }
 
-    setLevel(level) {
-        this.level = level;
-    }
+  setLevel(level) {
+    this.level = level
+  }
 
-    debug(...args) {
-        if (this.level >= this.levels.DEBUG) {
-            console.debug(`[${this.prefix}]`, ...args);
-        }
+  debug(...args) {
+    if (this.level >= this.levels.DEBUG) {
+      console.debug(`[${this.prefix}]`, ...args)
     }
+  }
 
-    info(...args) {
-        if (this.level >= this.levels.INFO) {
-            console.info(`[${this.prefix}]`, ...args);
-        }
+  info(...args) {
+    if (this.level >= this.levels.INFO) {
+      console.info(`[${this.prefix}]`, ...args)
     }
+  }
 
-    warn(...args) {
-        if (this.level >= this.levels.WARN) {
-            console.warn(`[${this.prefix}]`, ...args);
-        }
+  warn(...args) {
+    if (this.level >= this.levels.WARN) {
+      console.warn(`[${this.prefix}]`, ...args)
     }
+  }
 
-    error(...args) {
-        if (this.level >= this.levels.ERROR) {
-            console.error(`[${this.prefix}]`, ...args);
-        }
+  error(...args) {
+    if (this.level >= this.levels.ERROR) {
+      console.error(`[${this.prefix}]`, ...args)
     }
+  }
 }
 
 /**
@@ -46,15 +46,15 @@ export class Logger {
  * @returns {Function} Debounced function
  */
 export function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+  let timeout
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
 }
 
 /**
@@ -63,12 +63,12 @@ export function debounce(func, wait) {
  * @returns {string} Unique message ID
  */
 export function generateMessageId(isChildFrame) {
-    const type = isChildFrame ? 1 : 0;
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 7);
-    const counter = generateMessageId.counter || 0;
-    generateMessageId.counter = (counter + 1) % 10000;
-    return `${counter}-${type}-${timestamp}-${random}`;
+  const type = isChildFrame ? 1 : 0
+  const timestamp = Date.now().toString(36)
+  const random = Math.random().toString(36).substring(2, 7)
+  const counter = generateMessageId.counter || 0
+  generateMessageId.counter = (counter + 1) % 10000
+  return `${counter}-${type}-${timestamp}-${random}`
 }
 
 /**
@@ -76,12 +76,12 @@ export function generateMessageId(isChildFrame) {
  * @returns {boolean}
  */
 export function isInIframe() {
-    try {
-        return window.self !== window.top;
-    } catch (e) {
-        // If we get a security error, we're definitely in an iframe
-        return true;
-    }
+  try {
+    return window.self !== window.top
+  } catch (e) {
+    // If we get a security error, we're definitely in an iframe
+    return true
+  }
 }
 
 /**
@@ -89,17 +89,17 @@ export function isInIframe() {
  * @returns {string} Iframe ID
  */
 export function getIframeId() {
-    try {
-        const iframe = window.frameElement;
-        if (iframe?.dataset?.messengerId) {
-            return iframe.dataset.messengerId;
-        }
-    } catch (e) {
-        // Cross-origin iframe, can't access frameElement
+  try {
+    const iframe = window.frameElement
+    if (iframe?.dataset?.messengerId) {
+      return iframe.dataset.messengerId
     }
+  } catch (e) {
+    // Cross-origin iframe, can't access frameElement
+  }
 
-    // Generate UUID-like ID
-    return `iframe-${generateUUID()}`;
+  // Generate UUID-like ID
+  return `iframe-${generateUUID()}`
 }
 
 /**
@@ -107,16 +107,16 @@ export function getIframeId() {
  * @returns {string}
  */
 function generateUUID() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
 
-    // Fallback for older browsers
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-    });
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 /**
@@ -125,7 +125,7 @@ function generateUUID() {
  * @returns {Promise<void>}
  */
 export function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /**
@@ -135,11 +135,11 @@ export function sleep(ms) {
  * @returns {*} Parsed value or fallback
  */
 export function safeJSONParse(json, fallback = null) {
-    try {
-        return JSON.parse(json);
-    } catch (e) {
-        return fallback;
-    }
+  try {
+    return JSON.parse(json)
+  } catch (e) {
+    return fallback
+  }
 }
 
 /**
@@ -148,12 +148,12 @@ export function safeJSONParse(json, fallback = null) {
  * @returns {Object} Object with key-value pairs
  */
 export function getQueryParams(url) {
-    const searchParams = new URLSearchParams(url || window.location.search);
-    const params = {};
-    for (const [key, value] of searchParams.entries()) {
-        params[key] = value;
-    }
-    return params;
+  const searchParams = new URLSearchParams(url || window.location.search)
+  const params = {}
+  for (const [key, value] of searchParams.entries()) {
+    params[key] = value
+  }
+  return params
 }
 
 /**
@@ -162,15 +162,15 @@ export function getQueryParams(url) {
  * @param {boolean} replace - Use replaceState instead of pushState
  */
 export function updateQueryParams(params, replace = true) {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-        if (value === null || value === undefined) {
-            url.searchParams.delete(key);
-        } else {
-            url.searchParams.set(key, value);
-        }
-    });
+  const url = new URL(window.location.href)
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined) {
+      url.searchParams.delete(key)
+    } else {
+      url.searchParams.set(key, value)
+    }
+  })
 
-    const method = replace ? 'replaceState' : 'pushState';
-    window.history[method]({}, '', url.toString());
+  const method = replace ? 'replaceState' : 'pushState'
+  window.history[method]({}, '', url.toString())
 }

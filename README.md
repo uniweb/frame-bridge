@@ -54,8 +54,8 @@ const messenger = new ParentMessenger({
   actionHandlers: {
     userSelected: (iframeId, { userId }) => {
       return { success: true }
-    },
-  },
+    }
+  }
 })
 
 // Send messages
@@ -63,11 +63,13 @@ messenger.sendToChild('iframe-id', 'navigate', { path: '/users/123' })
 messenger.sendToAllChildren('setTheme', { theme: 'dark' })
 
 // Query iframe state
-messenger.getIframe('iframe-id')   // { origin, dimensions, route, metadata }
+messenger.getIframe('iframe-id') // { origin, dimensions, route, metadata }
 messenger.getAllIframes()
 
 // Update handlers after construction
-messenger.setHandler('userSelected', (id, params) => { /* ... */ })
+messenger.setHandler('userSelected', (id, params) => {
+  /* ... */
+})
 messenger.setHandlers({ action1: fn1, action2: fn2 })
 
 // Cleanup
@@ -89,7 +91,7 @@ const messenger = new ChildMessenger({
   // Custom route getter (for SPAs)
   getRoute: () => ({
     path: window.location.pathname,
-    title: document.title,
+    title: document.title
   }),
 
   // Callbacks
@@ -104,11 +106,11 @@ const messenger = new ChildMessenger({
   actionHandlers: {
     loadUser: ({ userId }) => {
       return { user: { id: userId, name: 'John' } }
-    },
+    }
   },
 
   // Extra data sent with announce
-  metadata: { version: '1.0' },
+  metadata: { version: '1.0' }
 })
 
 // Manual updates
@@ -121,7 +123,9 @@ const result = await messenger.sendToParent('userSelected', { userId: 123 })
 
 // Update handlers after construction
 messenger.setHandlers({
-  myAction: (params) => { /* can access current state */ },
+  myAction: (params) => {
+    /* can access current state */
+  }
 })
 
 // Cleanup
@@ -138,16 +142,19 @@ import { ChildMessenger } from '@uniweb/frame-bridge/child'
 
 function App() {
   const [count, setCount] = useState(0)
-  const [messenger] = useState(() => new ChildMessenger({
-    allowedOrigins: ['https://parent.example.com'],
-  }))
+  const [messenger] = useState(
+    () =>
+      new ChildMessenger({
+        allowedOrigins: ['https://parent.example.com']
+      })
+  )
 
   useEffect(() => {
     messenger.setHandlers({
-      getCount: () => ({ count }),  // always reads current state
+      getCount: () => ({ count }), // always reads current state
       navigate: ({ path }) => {
         window.history.pushState({}, '', path)
-      },
+      }
     })
     return () => messenger.destroy()
   }, [messenger, count])
@@ -194,6 +201,7 @@ The auto-init parent enables `autoResize`, `urlSync`, and `jsonLD`. The auto-ini
 The library is split into parent and child messengers that communicate via `postMessage`.
 
 **Parent-side (`src/parent/`):**
+
 - `ParentMessenger.js` — Main parent frame messenger
 - `IframeRegistry.js` — Tracks registered iframe metadata (origin, dimensions, route)
 - `URLSyncManager.js` — Syncs parent URL with iframe routes, handles browser navigation
@@ -201,12 +209,14 @@ The library is split into parent and child messengers that communicate via `post
 - `auto-init.js` — Self-initializing IIFE for CDN usage
 
 **Child-side (`src/child/`):**
+
 - `ChildMessenger.js` — Main iframe messenger
 - `DimensionReporter.js` — ResizeObserver-based dimension reporting (accounts for body margin/padding)
 - `RouteReporter.js` — Watches for route changes via pushState/replaceState patching
 - `auto-init.js` — Self-initializing IIFE for CDN usage
 
 **Shared (`src/shared/`):**
+
 - `BaseMessenger.js` — Abstract base class with promise-based postMessage wrapper
 - `OriginValidator.js` — Validates message origins (supports wildcards like `https://*.example.com`)
 - `constants.js` — Action types, defaults, error messages
@@ -225,6 +235,7 @@ The library is split into parent and child messengers that communicate via `post
 ### Build Outputs
 
 Rollup generates multiple formats in `dist/`:
+
 - **ESM** (`dist/esm/`) — For modern bundlers
 - **UMD** (`dist/umd/`) — For universal module systems
 - **IIFE** (`dist/auto/`) — Auto-initializing scripts for `<script>` tags (minified and unminified)
@@ -237,64 +248,64 @@ Each format has separate bundles for the full library (`index`), parent-only (`p
 
 #### Constructor Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `allowedOrigins` | `string[]` | Same-origin only | Allowed child origins |
-| `autoResize` | `boolean` | `false` | Auto-resize iframes to content |
-| `urlSync` | `boolean` | `false` | Sync parent URL with iframe routes |
-| `urlParamKey` | `string` | `'path'` | Query param key for routes |
-| `preserveOtherParams` | `boolean` | `true` | Keep other query params when syncing |
-| `jsonLD` | `boolean` | `false` | Inject JSON-LD from iframes into `<head>` |
-| `onIframeReady` | `function` | - | `(iframeId, { origin, dimensions, route, metadata })` |
-| `onRouteChange` | `function` | - | `(iframeId, { path, title })` |
-| `onDimensionUpdate` | `function` | - | `(iframeId, { width, height })` |
-| `actionHandlers` | `object` | `{}` | Custom action handlers |
-| `timeout` | `number` | `5000` | Message timeout (ms) |
-| `logLevel` | `number\|string` | `3` (`'INFO'`) | Logging verbosity |
+| Option                | Type             | Default          | Description                                           |
+| --------------------- | ---------------- | ---------------- | ----------------------------------------------------- |
+| `allowedOrigins`      | `string[]`       | Same-origin only | Allowed child origins                                 |
+| `autoResize`          | `boolean`        | `false`          | Auto-resize iframes to content                        |
+| `urlSync`             | `boolean`        | `false`          | Sync parent URL with iframe routes                    |
+| `urlParamKey`         | `string`         | `'path'`         | Query param key for routes                            |
+| `preserveOtherParams` | `boolean`        | `true`           | Keep other query params when syncing                  |
+| `jsonLD`              | `boolean`        | `false`          | Inject JSON-LD from iframes into `<head>`             |
+| `onIframeReady`       | `function`       | -                | `(iframeId, { origin, dimensions, route, metadata })` |
+| `onRouteChange`       | `function`       | -                | `(iframeId, { path, title })`                         |
+| `onDimensionUpdate`   | `function`       | -                | `(iframeId, { width, height })`                       |
+| `actionHandlers`      | `object`         | `{}`             | Custom action handlers                                |
+| `timeout`             | `number`         | `5000`           | Message timeout (ms)                                  |
+| `logLevel`            | `number\|string` | `3` (`'INFO'`)   | Logging verbosity                                     |
 
 #### Methods
 
-| Method | Returns | Description |
-|---|---|---|
-| `sendToChild(iframeId, action, params)` | `Promise` | Send message to specific iframe |
-| `sendToAllChildren(action, params)` | `Promise` | Send message to all iframes |
-| `getIframe(iframeId)` | `object\|null` | Get iframe metadata |
-| `getAllIframes()` | `object[]` | Get all iframe metadata |
-| `setHandler(action, fn)` | `void` | Set/replace single action handler |
-| `setHandlers(handlers)` | `void` | Set/replace multiple action handlers |
-| `setLogLevel(level)` | `void` | Change log level |
-| `destroy()` | `void` | Cleanup and remove listeners |
+| Method                                  | Returns        | Description                          |
+| --------------------------------------- | -------------- | ------------------------------------ |
+| `sendToChild(iframeId, action, params)` | `Promise`      | Send message to specific iframe      |
+| `sendToAllChildren(action, params)`     | `Promise`      | Send message to all iframes          |
+| `getIframe(iframeId)`                   | `object\|null` | Get iframe metadata                  |
+| `getAllIframes()`                       | `object[]`     | Get all iframe metadata              |
+| `setHandler(action, fn)`                | `void`         | Set/replace single action handler    |
+| `setHandlers(handlers)`                 | `void`         | Set/replace multiple action handlers |
+| `setLogLevel(level)`                    | `void`         | Change log level                     |
+| `destroy()`                             | `void`         | Cleanup and remove listeners         |
 
 ### ChildMessenger
 
 #### Constructor Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `allowedOrigins` | `string[]` | Same-origin only | Allowed parent origins |
-| `dimensionReporting` | `boolean` | `false` | Auto-report dimensions on resize |
-| `dimensionThreshold` | `number` | `1` | Min px change to trigger report |
-| `routeReporting` | `boolean` | `false` | Auto-report route changes |
-| `getRoute` | `function` | Default getter | Returns `{ path, title }` |
-| `onParentReady` | `function` | - | `(response)` |
-| `onNavigate` | `function` | - | `({ path })` |
-| `actionHandlers` | `object` | `{}` | Custom action handlers |
-| `metadata` | `object` | `{}` | Extra data sent with announce |
-| `timeout` | `number` | `5000` | Message timeout (ms) |
-| `logLevel` | `number\|string` | `3` (`'INFO'`) | Logging verbosity |
+| Option               | Type             | Default          | Description                      |
+| -------------------- | ---------------- | ---------------- | -------------------------------- |
+| `allowedOrigins`     | `string[]`       | Same-origin only | Allowed parent origins           |
+| `dimensionReporting` | `boolean`        | `false`          | Auto-report dimensions on resize |
+| `dimensionThreshold` | `number`         | `1`              | Min px change to trigger report  |
+| `routeReporting`     | `boolean`        | `false`          | Auto-report route changes        |
+| `getRoute`           | `function`       | Default getter   | Returns `{ path, title }`        |
+| `onParentReady`      | `function`       | -                | `(response)`                     |
+| `onNavigate`         | `function`       | -                | `({ path })`                     |
+| `actionHandlers`     | `object`         | `{}`             | Custom action handlers           |
+| `metadata`           | `object`         | `{}`             | Extra data sent with announce    |
+| `timeout`            | `number`         | `5000`           | Message timeout (ms)             |
+| `logLevel`           | `number\|string` | `3` (`'INFO'`)   | Logging verbosity                |
 
 #### Methods
 
-| Method | Returns | Description |
-|---|---|---|
-| `sendToParent(action, params)` | `Promise` | Send message to parent |
-| `updateRoute(path, title?)` | `void` | Manually report route change |
-| `updateDimensions()` | `void` | Manually trigger dimension report |
-| `updateJSONLD(jsonld)` | `void` | Send JSON-LD structured data |
-| `setHandler(action, fn)` | `void` | Set/replace single action handler |
-| `setHandlers(handlers)` | `void` | Set/replace multiple action handlers |
-| `setLogLevel(level)` | `void` | Change log level |
-| `destroy()` | `void` | Cleanup and remove listeners |
+| Method                         | Returns   | Description                          |
+| ------------------------------ | --------- | ------------------------------------ |
+| `sendToParent(action, params)` | `Promise` | Send message to parent               |
+| `updateRoute(path, title?)`    | `void`    | Manually report route change         |
+| `updateDimensions()`           | `void`    | Manually trigger dimension report    |
+| `updateJSONLD(jsonld)`         | `void`    | Send JSON-LD structured data         |
+| `setHandler(action, fn)`       | `void`    | Set/replace single action handler    |
+| `setHandlers(handlers)`        | `void`    | Set/replace multiple action handlers |
+| `setLogLevel(level)`           | `void`    | Change log level                     |
+| `destroy()`                    | `void`    | Cleanup and remove listeners         |
 
 If `ChildMessenger` is constructed outside an iframe, it creates a no-op instance (`isActive = false`) with a console warning.
 

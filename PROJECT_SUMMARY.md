@@ -58,15 +58,15 @@ frame-bridge/
 
 ```javascript
 // Before (callback hell)
-window.parent.postMessage({ action: 'getData' }, '*');
+window.parent.postMessage({ action: 'getData' }, '*')
 window.addEventListener('message', (event) => {
   if (event.data.action === 'dataResponse') {
     // handle response
   }
-});
+})
 
 // After (clean async/await)
-const data = await messenger.sendToParent('getData');
+const data = await messenger.sendToParent('getData')
 ```
 
 ### 2. Inheritance Hierarchy
@@ -77,13 +77,13 @@ BaseMessenger (abstract)
     ├── Promise management
     ├── Origin validation
     └── Action handler system
-    
+
 ParentMessenger extends BaseMessenger
     ├── Iframe registry
     ├── URL sync manager
     ├── JSON-LD injector
     └── Built-in parent actions
-    
+
 ChildMessenger extends BaseMessenger
     ├── Dimension reporter
     ├── Route reporter
@@ -108,16 +108,20 @@ We build 3 formats to support all use cases:
 
 ```javascript
 // Zero config - everything just works
-new ParentMessenger();
+new ParentMessenger()
 
 // Full config - maximum control
 new ParentMessenger({
   allowedOrigins: ['https://trusted.com'],
   autoResize: true,
   urlSync: true,
-  onIframeReady: (id, info) => { /* ... */ },
-  actionHandlers: { /* custom actions */ }
-});
+  onIframeReady: (id, info) => {
+    /* ... */
+  },
+  actionHandlers: {
+    /* custom actions */
+  }
+})
 ```
 
 ### 5. Security by Default
@@ -147,19 +151,20 @@ const messenger = new ParentMessenger({
   actionHandlers: {
     userSelected: (iframeId, params) => {
       // Sync handler
-      return { success: true };
+      return { success: true }
     },
-    
+
     loadData: async (iframeId, params) => {
       // Async handler
-      const data = await fetchData();
-      return data;
+      const data = await fetchData()
+      return data
     }
   }
-});
+})
 ```
 
 **Benefits**:
+
 - Clean, declarative
 - Supports sync and async handlers
 - Easy to test
@@ -175,13 +180,14 @@ generateMessageId(isChildFrame) {
   const counter = generateMessageId.counter || 0;
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 7);
-  
+
   generateMessageId.counter = (counter + 1) % 10000;
   return `${counter}-${type}-${timestamp}-${random}`;
 }
 ```
 
 **Why**:
+
 - Counter prevents collisions from rapid sends
 - Type (0/1) identifies source
 - Timestamp for ordering
@@ -191,15 +197,16 @@ generateMessageId(isChildFrame) {
 
 ```javascript
 const debouncedReport = debounce(() => {
-  this.reportDimensions();
-}, 150);
+  this.reportDimensions()
+}, 150)
 
 this.observer = new ResizeObserver(() => {
-  debouncedReport();
-});
+  debouncedReport()
+})
 ```
 
 **Why**:
+
 - ResizeObserver fires frequently during animations
 - Debouncing reduces message spam
 - 150ms balances responsiveness and performance
@@ -222,6 +229,7 @@ window.addEventListener('popstate', () => {
 ```
 
 **Why**:
+
 - Query params are search-engine friendly
 - replaceState avoids history pollution
 - Bidirectional: works for browser navigation too
@@ -231,19 +239,20 @@ window.addEventListener('popstate', () => {
 ```javascript
 class IframeRegistry {
   constructor() {
-    this.iframes = new Map();
+    this.iframes = new Map()
   }
-  
+
   register(iframeId, metadata) {
     this.iframes.set(iframeId, {
       ...metadata,
-      registeredAt: Date.now(),
-    });
+      registeredAt: Date.now()
+    })
   }
 }
 ```
 
 **Why**:
+
 - Map for O(1) lookups
 - Stores window reference, origin, dimensions, route
 - Timestamps for debugging
@@ -263,7 +272,7 @@ messenger.sendToParent('announce', {
 // Parent registers and responds
 handleAnnounce(params) {
   this.registry.register(params.iframeId, params);
-  
+
   return {
     params: this.getAllUrlParams(),
     config: { analyticsId: this.options.analyticsId }
@@ -272,6 +281,7 @@ handleAnnounce(params) {
 ```
 
 **Why**:
+
 - Single handshake establishes connection
 - Parent can pass initial state
 - Child can retry if parent not ready
@@ -282,6 +292,7 @@ handleAnnounce(params) {
 ### Rollup Configuration
 
 We build 10 different bundles:
+
 - 3 entry points (main, parent, child)
 - 3 formats each (ESM, UMD, IIFE)
 - Minified versions for IIFE
@@ -308,25 +319,26 @@ We build 10 different bundles:
 ```javascript
 describe('BaseMessenger', () => {
   it('should send message and resolve promise', async () => {
-    const messenger = new BaseMessenger({ isChildFrame: false });
-    const promise = messenger.sendMessage(targetWindow, 'action', {});
-    expect(promise).toBeInstanceOf(Promise);
-  });
-  
+    const messenger = new BaseMessenger({ isChildFrame: false })
+    const promise = messenger.sendMessage(targetWindow, 'action', {})
+    expect(promise).toBeInstanceOf(Promise)
+  })
+
   it('should validate origins', () => {
     const messenger = new BaseMessenger({
       allowedOrigins: ['https://trusted.com']
-    });
-    
-    expect(messenger.validator.validate('https://trusted.com')).toBe(true);
-    expect(messenger.validator.validate('https://evil.com')).toBe(false);
-  });
-});
+    })
+
+    expect(messenger.validator.validate('https://trusted.com')).toBe(true)
+    expect(messenger.validator.validate('https://evil.com')).toBe(false)
+  })
+})
 ```
 
 ### Integration Tests (Recommended)
 
 For full testing, you'd want to:
+
 1. Create actual iframe in jsdom/playwright
 2. Test bidirectional communication
 3. Test auto-resize with content changes
@@ -340,12 +352,12 @@ For full testing, you'd want to:
 
 ```javascript
 // Parent (your site)
-import { ParentMessenger } from '@uniweb/frame-bridge/parent';
-new ParentMessenger(); // That's it!
+import { ParentMessenger } from '@uniweb/frame-bridge/parent'
+new ParentMessenger() // That's it!
 
 // Child (third-party app)
-import { ChildMessenger } from '@uniweb/frame-bridge/child';
-new ChildMessenger(); // That's it!
+import { ChildMessenger } from '@uniweb/frame-bridge/child'
+new ChildMessenger() // That's it!
 ```
 
 ### Pattern 2: React SPA Child
@@ -354,21 +366,21 @@ new ChildMessenger(); // That's it!
 
 ```javascript
 // Child React app
-import { ChildMessenger } from '@uniweb/frame-bridge/child';
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { ChildMessenger } from '@uniweb/frame-bridge/child'
+import { useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const messenger = new ChildMessenger({
   onNavigate: ({ path }) => {
-    navigate(path);
+    navigate(path)
   }
-});
+})
 
 function useRouteSync() {
-  const location = useLocation();
+  const location = useLocation()
   useEffect(() => {
-    messenger.updateRoute(location.pathname, document.title);
-  }, [location]);
+    messenger.updateRoute(location.pathname, document.title)
+  }, [location])
 }
 ```
 
@@ -381,21 +393,21 @@ function useRouteSync() {
 const messenger = new ParentMessenger({
   actionHandlers: {
     itemSelected: (iframeId, { itemId }) => {
-      updateUI(itemId);
-      return { success: true };
+      updateUI(itemId)
+      return { success: true }
     }
   }
-});
+})
 
 // Child
 const messenger = new ChildMessenger({
   actionHandlers: {
     updateTheme: ({ theme }) => {
-      setTheme(theme);
-      return { applied: true };
+      setTheme(theme)
+      return { applied: true }
     }
   }
-});
+})
 
 // Usage
 // Child: await messenger.sendToParent('itemSelected', { itemId: 123 });
@@ -409,18 +421,18 @@ const messenger = new ChildMessenger({
 ```javascript
 const messenger = new ParentMessenger({
   onIframeReady: (id, info) => {
-    console.log(`${id} ready at ${info.route.path}`);
+    console.log(`${id} ready at ${info.route.path}`)
   }
-});
+})
 
 // Send to specific iframe
-messenger.sendToChild('analytics-iframe', 'refresh');
+messenger.sendToChild('analytics-iframe', 'refresh')
 
 // Broadcast to all
-messenger.sendToAllChildren('updateUser', { userId: 123 });
+messenger.sendToAllChildren('updateUser', { userId: 123 })
 
 // Get info about all iframes
-const iframes = messenger.getAllIframes();
+const iframes = messenger.getAllIframes()
 ```
 
 ## Performance Considerations
@@ -474,6 +486,7 @@ const iframes = messenger.getAllIframes();
 ### Polyfills Needed
 
 For older browsers (IE11, old Safari):
+
 - Promise polyfill
 - ResizeObserver polyfill (or library provides fallback)
 
@@ -487,6 +500,7 @@ For older browsers (IE11, old Safari):
 ## Next Steps for Enhancement
 
 ### Phase 1 (MVP) - COMPLETE ✅
+
 - Core messaging
 - Parent/child classes
 - Auto-resize
@@ -495,12 +509,14 @@ For older browsers (IE11, old Safari):
 - Demos
 
 ### Phase 2 (Nice to Have)
+
 - React hooks package (`@uniweb/frame-bridge-react`)
 - Vue composables package
 - Analytics helpers
 - More demos (WordPress plugin, etc.)
 
 ### Phase 3 (Advanced)
+
 - TypeScript definitions
 - E2E test suite
 - CDN hosting
@@ -509,24 +525,28 @@ For older browsers (IE11, old Safari):
 ## Development Workflow
 
 ### Build
+
 ```bash
 npm run build
 # Outputs to dist/
 ```
 
 ### Dev Mode
+
 ```bash
 npm run dev
 # Watches for changes, rebuilds
 ```
 
 ### Test
+
 ```bash
 npm test
 # Runs Vitest
 ```
 
 ### Try Demo
+
 ```bash
 python3 -m http.server 8000
 # Open: http://localhost:8000/demos/basic/parent.html
@@ -535,12 +555,14 @@ python3 -m http.server 8000
 ## File Size
 
 Estimated bundle sizes (minified):
+
 - Full library: ~15KB
-- Parent only: ~10KB  
+- Parent only: ~10KB
 - Child only: ~8KB
 - Auto-init IIFE: ~12KB
 
 After gzip:
+
 - Full library: ~5KB
 - Parent only: ~4KB
 - Child only: ~3KB
@@ -574,7 +596,7 @@ We've created a production-ready, well-architected library that:
 ✅ **Performs well** - Debouncing, efficient messaging  
 ✅ **Secure by default** - Origin validation, no silent failures  
 ✅ **Well documented** - README, getting started, demos, tests  
-✅ **Multiple formats** - ESM, UMD, IIFE - works everywhere  
+✅ **Multiple formats** - ESM, UMD, IIFE - works everywhere
 
 The library follows your existing patterns (promise-based, action handlers) while adding modern conveniences (auto-resize, URL sync, etc.) that make iframe integration trivial.
 

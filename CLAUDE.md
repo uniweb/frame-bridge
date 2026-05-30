@@ -9,12 +9,14 @@ Frame Bridge is an iframe communication library for Uniweb. Its **primary** use 
 ## Development Commands
 
 ### Building
+
 ```bash
 npm run build        # Production build (all formats)
 npm run dev          # Watch mode for development
 ```
 
 ### Testing
+
 ```bash
 npm test             # Run tests with Vitest
 npm test:watch       # Run tests in watch mode
@@ -27,6 +29,7 @@ npm test:watch       # Run tests in watch mode
 The library is split into **parent** and **child** messengers that communicate via `postMessage`:
 
 **Parent-side (`src/parent/`):**
+
 - `ParentMessenger.js` - Main parent frame messenger
 - `IframeRegistry.js` - Tracks registered iframe metadata (origin, dimensions, route)
 - `URLSyncManager.js` - Syncs parent URL with iframe routes, handles browser navigation
@@ -34,12 +37,14 @@ The library is split into **parent** and **child** messengers that communicate v
 - `auto-init.js` - Self-initializing IIFE for CDN usage
 
 **Child-side (`src/child/`):**
+
 - `ChildMessenger.js` - Main iframe messenger
 - `DimensionReporter.js` - ResizeObserver-based dimension reporting (accounts for body margin/padding)
 - `RouteReporter.js` - Watches for route changes and reports to parent
 - `auto-init.js` - Self-initializing IIFE for CDN usage
 
 **Shared (`src/shared/`):**
+
 - `BaseMessenger.js` - Abstract base class with promise-based postMessage wrapper
 - `OriginValidator.js` - Validates message origins for security
 - `constants.js` - Action types, defaults, error messages
@@ -48,6 +53,7 @@ The library is split into **parent** and **child** messengers that communicate v
 ### Defaults
 
 All embedding features default to **off**:
+
 - `ParentMessenger`: `autoResize`, `urlSync`, `jsonLD` — all `false` by default
 - `ChildMessenger`: `dimensionReporting`, `routeReporting` — all `false` by default
 
@@ -88,12 +94,14 @@ useEffect(() => {
 ### Build Outputs
 
 Rollup generates multiple formats in `dist/`:
+
 - **ESM** (`dist/esm/`) - For modern bundlers (main exports)
 - **UMD** (`dist/umd/`) - For universal module systems
 - **IIFE** (`dist/auto/`) - Auto-initializing scripts for `<script>` tags
   - Both minified (`.min.js`) and unminified versions
 
 Each format has separate bundles for:
+
 - Full library (`index.js`)
 - Parent-only (`parent.js`)
 - Child-only (`child.js`)
@@ -101,26 +109,33 @@ Each format has separate bundles for:
 ## Key Implementation Details
 
 ### Promise-Based Messaging
+
 All `sendMessage` calls return promises. The messenger generates unique message IDs and stores pending promises in a Map, resolving them when responses arrive.
 
 ### Iframe Identification
+
 Iframes are identified via `data-messenger-id` attribute or auto-generated from iframe src hash. This allows multiple iframes per page.
 
 ### Dimension Accuracy
+
 `DimensionReporter.getDimensions()` adds body margin, padding, and border to `scrollHeight` for accurate reporting. Debug info (`_debug` field) includes spacing breakdown.
 
 ### Security
+
 `OriginValidator` checks message origins against allowedOrigins (supports wildcards like `https://*.example.com`). Defaults to same-origin only.
 
 ### Retries
+
 Child announce has retry logic (3 attempts, 500ms delay) in case parent isn't ready.
 
 ### RouteReporter Cleanup
+
 `RouteReporter.stop()` restores original `pushState`/`replaceState` methods, preventing leaked history interception after the reporter is destroyed.
 
 ## Testing
 
 Tests use Vitest with jsdom environment. Run individual test files:
+
 ```bash
 npm test -- src/parent/ParentMessenger.test.js
 ```
