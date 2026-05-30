@@ -64,6 +64,6 @@
         "@rollup/plugin-terser": "^0.4.4",
         "jsdom": "^27.3.0",
         "rollup": "^4.9.0",
-        "vitest": "^1.1.0"
+        "vitest": "^4.1.7"
     }
 }
