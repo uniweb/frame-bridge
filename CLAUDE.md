@@ -95,10 +95,25 @@ useEffect(() => {
 
 Rollup generates multiple formats in `dist/`:
 
-- **ESM** (`dist/esm/`) - For modern bundlers (main exports)
-- **UMD** (`dist/umd/`) - For universal module systems
+- **ESM** (`dist/esm/`) - For modern bundlers
 - **IIFE** (`dist/auto/`) - Auto-initializing scripts for `<script>` tags
   - Both minified (`.min.js`) and unminified versions
+
+UMD builds were removed (`Remove UDM builds`); there is no `dist/umd/`.
+
+**Why this package has a build at all, when most `@uniweb/*` packages ship plain
+source.** The IIFE bundles are the reason: a frame-bridge child may have to run
+inside an arbitrary iframe page with no bundler and no module system, which a
+bare `src/` cannot serve. That makes `dist/` load-bearing — do **not** "simplify"
+it away by dropping `dist` from `files`.
+
+Note the entry split this creates: `exports` points at `src/`, while
+`main`/`module` point at `dist/esm/index.js`. Any modern ESM resolver takes
+`exports` and never sees `dist/`; only a `main`-resolving consumer does. The
+banner is derived from `package.json` (see `rollup.config.js`) precisely because
+that path is the one nobody developing here looks at — it shipped a hardcoded
+`@version 1.0.0` for the package's whole history, and was found by a consumer
+resolving the package the other way, not from inside.
 
 Each format has separate bundles for:
 

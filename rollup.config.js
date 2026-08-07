@@ -1,11 +1,23 @@
+import { readFileSync } from 'node:fs'
 import resolve from '@rollup/plugin-node-resolve'
 import terser from '@rollup/plugin-terser'
 
+// Read from package.json rather than hardcoding. The version is bumped at
+// publish time, so a literal here can only ever be stale — and was: every
+// published dist carried `@version 1.0.0`, a version this package has never
+// had. It went unnoticed for the package's whole history because the banner
+// is a comment and `exports` resolves to src/, so the only reader is a
+// consumer coming through `main` — which is the entry nobody developing here
+// exercises.
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+)
+
 const banner = `/**
- * @uniweb/frame-bridge
- * Promise-based iframe communication library
- * @version 1.0.0
- * @license MIT
+ * ${pkg.name}
+ * ${pkg.description}
+ * @version ${pkg.version}
+ * @license ${pkg.license}
  */`
 
 // Base configuration
