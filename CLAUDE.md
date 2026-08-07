@@ -104,8 +104,18 @@ UMD builds were removed (`Remove UDM builds`); there is no `dist/umd/`.
 **Why this package has a build at all, when most `@uniweb/*` packages ship plain
 source.** The IIFE bundles are the reason: a frame-bridge child may have to run
 inside an arbitrary iframe page with no bundler and no module system, which a
-bare `src/` cannot serve. That makes `dist/` load-bearing — do **not** "simplify"
-it away by dropping `dist` from `files`.
+bare `src/` cannot serve.
+
+⛔ **Do not drop `dist` from `files` to "simplify" the package.** The README
+documents these bundles as jsDelivr script-tag includes
+(`cdn.jsdelivr.net/npm/@uniweb/frame-bridge/dist/auto/parent.min.js`), and that
+URL is live — jsDelivr serves any published tarball's files with no action from
+us. Removing `dist` breaks a documented public entry point.
+
+Note that the consumers of that entry point are **outside every repo we own** —
+somebody embedding a site in an iframe on their own page. So searching our code
+for usage cannot tell you whether it is used; a zero-hit grep means only that we
+don't consume it ourselves. The README is the contract here, not our imports.
 
 Note the entry split this creates: `exports` points at `src/`, while
 `main`/`module` point at `dist/esm/index.js`. Any modern ESM resolver takes
