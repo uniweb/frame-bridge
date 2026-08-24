@@ -21,8 +21,14 @@ Or use auto-init scripts via CDN for the embedding use case:
 <script src="https://cdn.jsdelivr.net/npm/@uniweb/frame-bridge/dist/auto/parent.min.js"></script>
 
 <!-- Child iframe -->
-<script src="https://cdn.jsdelivr.net/npm/@uniweb/frame-bridge/dist/auto/child.min.js"></script>
+<script
+  src="https://cdn.jsdelivr.net/npm/@uniweb/frame-bridge/dist/auto/child.min.js"
+  data-allowed-origins="https://embedder.example.com"
+></script>
 ```
+
+`data-allowed-origins` names the page allowed to embed this document. It is
+**required for cross-origin embedding** — see below.
 
 ## Programmatic Usage
 
@@ -186,7 +192,10 @@ The auto-init scripts create a `window.FrameBridge` object with all embedding fe
 **Child iframe:**
 
 ```html
-<script src="https://cdn.../child.min.js"></script>
+<script
+  src="https://cdn.../child.min.js"
+  data-allowed-origins="https://embedder.example.com"
+></script>
 <script>
   window.FrameBridge.on('parentReady', (response) => {
     console.log('Connected to parent')
@@ -195,6 +204,29 @@ The auto-init scripts create a `window.FrameBridge` object with all embedding fe
 ```
 
 The auto-init parent enables `autoResize`, `urlSync`, and `jsonLD`. The auto-init child enables `dimensionReporting` and `routeReporting`.
+
+### Origins for the auto-init scripts
+
+Both frames refuse messages from an origin they were not told about, and both
+default to **same-origin only**. For the cross-origin case above that default is
+not enough, so each side needs to know the other:
+
+- **Child** — set `data-allowed-origins` on the script tag, naming the page(s)
+  allowed to embed it. Comma-separate several. **Without it, a cross-origin
+  parent cannot reach the child and the handshake never completes.**
+- **Parent** — usually nothing to do. It derives the permitted child origins
+  from the `src` of the iframes on the page, since you already named them there.
+  Set `data-allowed-origins` on the parent script to override that, for example
+  when an iframe's `src` is assigned later by script.
+
+The attribute is read from the executing `<script>` tag, so it only works on a
+plain `<script src="…">` include — the documented usage. If you load the bundle
+some other way, import `ChildMessenger` / `ParentMessenger` directly and pass
+`allowedOrigins` yourself.
+
+> **Why not default to `'*'`?** The auto-init child turns on route reporting and
+> acts on `navigate` messages from its parent. A wildcard default would let any
+> page that frames the document steer it, so cross-origin access is opt-in.
 
 ## Architecture
 

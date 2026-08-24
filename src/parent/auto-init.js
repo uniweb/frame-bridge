@@ -1,4 +1,8 @@
 import { ParentMessenger } from './ParentMessenger.js'
+import {
+  readAllowedOriginsAttribute,
+  deriveOriginsFromIframes
+} from '../shared/utils.js'
 
 /**
  * Auto-initialize ParentMessenger and expose on window
@@ -8,11 +12,24 @@ import { ParentMessenger } from './ParentMessenger.js'
     return
   }
 
-  // Create messenger with default options
+  // Read the script tag FIRST — document.currentScript is only valid while
+  // this script is evaluating.
+  //
+  //   <script src="…/parent.min.js" data-allowed-origins="https://site.example.com">
+  //
+  // An explicit attribute wins outright. With none, derive the child origins
+  // from the iframes this page actually frames: an embedder already names them
+  // in the src it wrote, so repeating them would be redundant. The derivation
+  // always includes our own origin, which makes it strictly additive — it can
+  // widen the same-origin default but never narrow it.
+  const allowedOrigins =
+    readAllowedOriginsAttribute() || deriveOriginsFromIframes()
+
   const messenger = new ParentMessenger({
     autoResize: true,
     urlSync: true,
-    jsonLD: true
+    jsonLD: true,
+    allowedOrigins
   })
 
   // Simple event emitter for convenience

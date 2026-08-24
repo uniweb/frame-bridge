@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The CDN auto-init bundles can now be used cross-origin.** Neither
+  `dist/auto/child.min.js` nor `dist/auto/parent.min.js` set `allowedOrigins`,
+  so `OriginValidator` defaulted each side to its *own* origin — meaning the
+  cross-origin embedding this README documents could never complete a
+  handshake. The child addressed itself (dropped silently by the browser) and
+  both sides rejected the other on the way in. Broken since the bundles were
+  introduced.
+
+### Added
+
+- **`data-allowed-origins` on the auto-init script tag.** Comma-separated
+  origins, read from the executing `<script>` element. On the **child** it
+  names the pages allowed to embed the document, and is required for
+  cross-origin use. On the **parent** it is optional: with no attribute the
+  parent derives the permitted child origins from the `src` of the iframes on
+  the page, always keeping its own origin so the derivation can only widen the
+  previous default, never narrow it.
+- Tests for both auto-init bundles, which previously had none.
+
+**Absence still means same-origin only, deliberately** — not `'*'`. The
+auto-init child enables route reporting and acts on `navigate` from its parent,
+so a permissive default would let any page that frames the document steer it.
+
 > **Note:** this file has no entries for `0.1.x` or `0.2.x`. Those releases were
 > made without changelog updates and are not reconstructed here — inventing them
 > after the fact would be a guess. Entries resume from this change.

@@ -72,6 +72,77 @@ export function generateMessageId(isChildFrame) {
 }
 
 /**
+ * Read a comma-separated origin list off the currently-executing script tag.
+ *
+ *   <script src="…/child.min.js" data-allowed-origins="https://a.example.com">
+ *
+ * ⛔ Returns `null` when the attribute is absent or empty, and callers MUST
+ * read that as "same-origin only" — never as "any origin". The auto-init
+ * bundles enable `routeReporting` and wire `onNavigate`, so a permissive
+ * default would let any page that frames the document steer it.
+ *
+ * `document.currentScript` is only valid while a classic `<script src>` is
+ * evaluating, which is how these bundles are documented — so callers must read
+ * it synchronously at the top of the IIFE. A module or async loader may null
+ * it, hence the explicit override.
+ *
+ * @param {Element} [scriptEl] - Script element to read instead of currentScript
+ * @returns {string[]|null} Declared origins, or null if none were declared
+ */
+export function readAllowedOriginsAttribute(scriptEl) {
+  try {
+    const el = scriptEl || document.currentScript
+    const raw =
+      el?.dataset?.allowedOrigins ??
+      el?.getAttribute?.('data-allowed-origins')
+    if (!raw) return null
+
+    const origins = raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+
+    return origins.length ? origins : null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
+ * Origins this page has deliberately framed, for the parent auto-init.
+ *
+ * An embedder already names its children in the iframe `src` it wrote, so
+ * requiring it to repeat them in an attribute is redundant. `window.location
+ * .origin` is always included, which makes this **strictly additive**: it can
+ * only widen the same-origin default, never narrow it — an iframe whose `src`
+ * is assigned later still works exactly as it does today.
+ *
+ * @returns {string[]} Own origin plus every framed origin found at load
+ */
+export function deriveOriginsFromIframes() {
+  const origins = new Set([window.location.origin])
+
+  try {
+    for (const el of document.querySelectorAll('iframe[src]')) {
+      try {
+        const { origin } = new URL(
+          el.getAttribute('src'),
+          window.location.href
+        )
+        // An opaque origin ('null' — srcdoc, data:) can never be matched.
+        if (origin && origin !== 'null') origins.add(origin)
+      } catch (e) {
+        // An unparseable src names no origin; skip it.
+      }
+    }
+  } catch (e) {
+    // No DOM to query — fall through with the own-origin default.
+  }
+
+  return [...origins]
+}
+
+/**
  * Can this string be used as a postMessage `targetOrigin`?
  *
  * `allowedOrigins` is a permission set and may hold wildcard PATTERNS

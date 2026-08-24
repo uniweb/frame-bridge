@@ -1,5 +1,8 @@
 import { ChildMessenger } from './ChildMessenger.js'
-import { isInIframe } from '../shared/utils.js'
+import {
+  isInIframe,
+  readAllowedOriginsAttribute
+} from '../shared/utils.js'
 
 /**
  * Auto-initialize ChildMessenger and expose on window
@@ -9,10 +12,21 @@ import { isInIframe } from '../shared/utils.js'
     return
   }
 
-  // Create messenger with default options
+  // Read the script tag FIRST — document.currentScript is only valid while
+  // this script is evaluating, so anything async would come too late.
+  //
+  //   <script src="…/child.min.js" data-allowed-origins="https://embedder.example.com">
+  //
+  // null means "same-origin only" (OriginValidator's default). Cross-origin
+  // embedding is opt-in on purpose: this bundle enables routeReporting and
+  // wires onNavigate, so a permissive default would hand navigation control
+  // to any page that frames the document.
+  const allowedOrigins = readAllowedOriginsAttribute()
+
   const messenger = new ChildMessenger({
     dimensionReporting: true,
-    routeReporting: true
+    routeReporting: true,
+    allowedOrigins
   })
 
   // Simple event emitter for convenience
