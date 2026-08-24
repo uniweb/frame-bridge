@@ -1,6 +1,11 @@
 import { BaseMessenger } from '../shared/BaseMessenger.js'
 import { ACTIONS, DEFAULTS, ERRORS } from '../shared/constants.js'
-import { isInIframe, getIframeId, sleep } from '../shared/utils.js'
+import {
+  isInIframe,
+  getIframeId,
+  sleep,
+  isAddressableOrigin
+} from '../shared/utils.js'
 import { DimensionReporter } from './DimensionReporter.js'
 import { RouteReporter, defaultRouteGetter } from './RouteReporter.js'
 
@@ -44,6 +49,10 @@ export class ChildMessenger extends BaseMessenger {
 
     this.isActive = true
 
+    // The embedder's real origin, learned from the first validated message
+    // it sends us. Null until then — see onValidatedMessage / sendToParent.
+    this.parentOrigin = null
+
     // Store options
     this.options = {
       dimensionReporting: options.dimensionReporting === true,
@@ -70,6 +79,34 @@ export class ChildMessenger extends BaseMessenger {
     if (options.autoAnnounce !== false) {
       this.announce()
     }
+  }
+
+  /**
+   * Learn the embedder's real origin from a message it sent us.
+   *
+   * `allowedOrigins` is a permission SET — every entry is an origin the
+   * deployment says MAY frame this document — so no element of it identifies
+   * the parent. The parent side has never had to guess: it records
+   * `event.origin` at announce time and addresses that thereafter
+   * (`ParentMessenger.handleAnnounce` -> `IframeRegistry`). This is the same
+   * discipline on the child side.
+   *
+   * ⛔ Only `window.parent` may teach us. The validator admits any permitted
+   * origin, which includes a sibling iframe or an opener on that origin —
+   * without this check such a window could capture our outbound addressing.
+   *
+   * @protected
+   * @param {MessageEvent} event - A message that already passed validation
+   */
+  onValidatedMessage(event) {
+    if (!this.isActive || this.parentOrigin) return
+    if (event.source !== window.parent) return
+    // A null-origin parent (srcdoc, data:) cannot be addressed by origin;
+    // leave the latch empty so sendToParent keeps its wildcard handling.
+    if (!isAddressableOrigin(event.origin)) return
+
+    this.parentOrigin = event.origin
+    this.logger.debug('Parent origin learned:', event.origin)
   }
 
   /**
@@ -116,8 +153,12 @@ export class ChildMessenger extends BaseMessenger {
         if (attempt < maxRetries) {
           await sleep(DEFAULTS.ANNOUNCE_RETRY_DELAY)
         } else {
-          this.logger.error(ERRORS.ANNOUNCE_FAILED)
-          throw new Error(ERRORS.ANNOUNCE_FAILED)
+          // Carry the reason into the throw. This is the error that surfaces
+          // as an unhandled rejection for callers with no .catch(), so it is
+          // the one most likely to be the only thing anybody reads.
+          const detail = error?.message ? ` — ${error.message}` : ''
+          this.logger.error(`${ERRORS.ANNOUNCE_FAILED}${detail}`)
+          throw new Error(`${ERRORS.ANNOUNCE_FAILED}${detail}`)
         }
       }
     }
@@ -237,14 +278,82 @@ export class ChildMessenger extends BaseMessenger {
       return Promise.resolve()
     }
 
-    // Use parent's origin (from allowedOrigins) for cross-origin support.
-    // '*' wildcard is used when allowedOrigins includes '*'.
     const allowed = this.validator.getAllowedOrigins()
-    const targetOrigin = allowed.includes('*')
-      ? '*'
-      : allowed[0] || window.location.origin
 
-    return this.sendMessage(window.parent, action, params, targetOrigin)
+    // Wildcard mode: the deployment accepts any embedder, so address any.
+    if (allowed.includes('*')) {
+      return this.sendMessage(window.parent, action, params, '*')
+    }
+
+    // After the handshake we KNOW who the parent is. Address it exactly.
+    if (this.parentOrigin) {
+      return this.sendMessage(window.parent, action, params, this.parentOrigin)
+    }
+
+    // Before the handshake we do not, and `allowedOrigins` cannot tell us:
+    // it is a permission set, not an identity. Address every concrete member.
+    // The browser delivers to the one that matches the real parent and drops
+    // the rest, so exactly one lands. Nothing is widened — every origin used
+    // is already permitted by the deployment.
+    const targets = allowed.filter(isAddressableOrigin)
+
+    if (targets.length === 0) {
+      // Patterns cannot be a postMessage target, so there is nothing to
+      // address. Fail loudly instead of posting into the void.
+      const error = new Error(
+        `${ERRORS.NO_ADDRESSABLE_ORIGIN}: ${allowed.join(', ')}`
+      )
+      this.logger.error(error.message)
+      return Promise.reject(error)
+    }
+
+    return this.broadcastToParent(action, params, targets)
+  }
+
+  /**
+   * Address several permitted origins at once, resolving with whichever
+   * reply arrives. Used only to bootstrap: once any of them answers,
+   * `onValidatedMessage` latches its origin and later sends are exact.
+   *
+   * @private
+   * @param {string} action - Action name
+   * @param {Object} params - Parameters
+   * @param {string[]} targets - Concrete origins to address
+   * @returns {Promise<*>} The first response received
+   */
+  broadcastToParent(action, params, targets) {
+    if (targets.length === 1) {
+      return this.sendMessage(window.parent, action, params, targets[0])
+    }
+
+    this.logger.debug('Addressing permitted parent origins:', targets)
+
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const failures = []
+
+      targets.forEach((origin) => {
+        this.sendMessage(window.parent, action, params, origin).then(
+          (result) => {
+            if (settled) return
+            settled = true
+            resolve(result)
+          },
+          (error) => {
+            failures.push(`${origin} (${error.message})`)
+            if (settled || failures.length < targets.length) return
+            settled = true
+            // Every permitted origin was addressed and none answered. Say so
+            // rather than blaming the parent for a message it never received.
+            reject(
+              new Error(
+                `${ERRORS.NO_PARENT_RESPONSE}. Addressed: ${failures.join('; ')}`
+              )
+            )
+          }
+        )
+      })
+    })
   }
 
   /**

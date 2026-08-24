@@ -68,6 +68,15 @@ export class BaseMessenger {
   }
 
   /**
+   * Hook invoked for every FrameBridge message that passes origin validation.
+   * No-op in the base class; `ChildMessenger` uses it to latch the embedder's
+   * real origin instead of guessing at it.
+   * @protected
+   * @param {MessageEvent} _event - The validated message event
+   */
+  onValidatedMessage(_event) {}
+
+  /**
    * Send a message and wait for response
    * @protected
    * @param {Window} targetWindow - Target window object
@@ -96,8 +105,19 @@ export class BaseMessenger {
       // Setup timeout
       const timeoutId = setTimeout(() => {
         this.pendingPromises.delete(messageId)
-        this.logger.error(ERRORS.MESSAGE_TIMEOUT, { action, messageId })
-        reject(new Error(`${ERRORS.MESSAGE_TIMEOUT}: ${action}`))
+        // Name the origin. A postMessage dropped for a targetOrigin mismatch
+        // is indistinguishable from a peer that never replied, so a bare
+        // timeout accuses the peer of the sender's mistake.
+        this.logger.error(ERRORS.MESSAGE_TIMEOUT, {
+          action,
+          messageId,
+          targetOrigin
+        })
+        reject(
+          new Error(
+            `${ERRORS.MESSAGE_TIMEOUT}: ${action} (addressed ${targetOrigin})`
+          )
+        )
       }, this.timeout)
 
       // Store promise resolver with timeout
@@ -132,6 +152,10 @@ export class BaseMessenger {
     if (!this.validator.validate(event.origin)) {
       return
     }
+
+    // Subclasses may learn the peer's real origin here. Only ever called
+    // with an origin the validator has already accepted.
+    this.onValidatedMessage(event)
 
     this.logger.debug('Received message:', { action, id, params })
 

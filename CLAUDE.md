@@ -149,6 +149,40 @@ Iframes are identified via `data-messenger-id` attribute or auto-generated from 
 
 `OriginValidator` checks message origins against allowedOrigins (supports wildcards like `https://*.example.com`). Defaults to same-origin only.
 
+### ⛔ `allowedOrigins` is a permission SET, not an identity — and the two directions differ
+
+**Nothing in it identifies the peer.** Every entry is an origin the deployment says *may* sit on
+the other side. Reading any element of it as "the parent" is a category error, and it is one this
+package made for six months (`a2d5aa3`, 2026-02-10, whose commit message says the quiet part:
+*"uses the first allowedOrigin (the parent's origin)"*).
+
+**Inbound is a match; outbound is an address.** They are not symmetric:
+
+| | inbound (`validate`) | outbound (`postMessage` targetOrigin) |
+|---|---|---|
+| the set | matched against, patterns included | ⛔ **cannot be used as a target** |
+| `https://*.example.com` | ✅ matches subdomains | ⛔ accepted **without throwing**, delivered to **nobody** |
+
+⚠️ **That asymmetry is why the failure was invisible.** A wrong target is not rejected — the browser
+drops the message, no error fires anywhere, and the sender's 5 s timeout reports it as *the peer did
+not answer*. **Evidence pointing at the wrong side of the connection is worse
+than no evidence at all.**
+
+⭐ **The discipline, and the parent side has always had it: LEARN the origin, never guess it.**
+`ParentMessenger.handleAnnounce` records `event.origin` into `IframeRegistry`, and `sendToChild`
+addresses `iframe.origin`. `ChildMessenger` now does the same via `onValidatedMessage` →
+`this.parentOrigin`, and only `window.parent` may set it — the validator admits *any* permitted
+origin, which includes a sibling iframe or an opener that would otherwise capture our addressing.
+
+The child speaks first, so it has one genuine bootstrap problem: at announce time nobody has told it
+anything. It addresses **every concrete permitted origin**; the browser delivers to at most one.
+That widens nothing (each origin is already permitted) and it is the **only** send that broadcasts —
+after the reply lands, addressing is exact. Pinned by `tests/ChildMessenger.test.js`, whose fake
+parent reproduces the measured browser semantics (accept anything, deliver only on an exact match).
+
+⛔ **Do not "simplify" this back to a single target chosen from the list.** The list cannot answer
+the question, and the failure it produces is silent.
+
 ### Retries
 
 Child announce has retry logic (3 attempts, 500ms delay) in case parent isn't ready.

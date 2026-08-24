@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> **Note:** this file has no entries for `0.1.x` or `0.2.x`. Those releases were
+> made without changelog updates and are not reconstructed here — inventing them
+> after the fact would be a guess. Entries resume from this change.
+
+### Fixed
+
+- **`ChildMessenger` no longer guesses which permitted origin is its embedder.**
+  `sendToParent()` addressed `allowedOrigins[0]`, treating the first element of a
+  permission **set** as if it identified the parent. When the real embedder was
+  any other member the browser dropped every message with no error on either
+  side, and the child reported a *timeout* — blaming the parent for not answering
+  a message it never received. The child now addresses every permitted origin to
+  bootstrap (the browser delivers to at most one), then **latches the origin it
+  actually heard from** and addresses that exactly for every later message. This
+  is the discipline the parent side has always used.
+- **Wildcard patterns are no longer addressed.** `allowedOrigins` may hold
+  patterns such as `https://*.example.com`, which `OriginValidator` matches on
+  inbound messages. A pattern can never be a `postMessage` target — measured in
+  Chrome, it is accepted without throwing and then delivered to nobody. Patterns
+  are now skipped when addressing, and a set containing *only* patterns fails
+  loudly instead of silently posting into the void.
+
 ### Changed
+
+- **Message-timeout errors name the origin that was addressed.** A dropped
+  `postMessage` is indistinguishable from a peer that never replied, so a bare
+  timeout pointed at the wrong side of the connection.
 
 - Switched to ESM-only builds (removed CommonJS/UMD support)
 - Updated package.json with npm best practices (homepage, bugs, engines, sideEffects)

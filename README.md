@@ -282,7 +282,7 @@ Each format has separate bundles for the full library (`index`), parent-only (`p
 
 | Option               | Type             | Default          | Description                      |
 | -------------------- | ---------------- | ---------------- | -------------------------------- |
-| `allowedOrigins`     | `string[]`       | Same-origin only | Allowed parent origins           |
+| `allowedOrigins`     | `string[]`       | Same-origin only | Allowed parent origins (see below) |
 | `dimensionReporting` | `boolean`        | `false`          | Auto-report dimensions on resize |
 | `dimensionThreshold` | `number`         | `1`              | Min px change to trigger report  |
 | `routeReporting`     | `boolean`        | `false`          | Auto-report route changes        |
@@ -290,6 +290,23 @@ Each format has separate bundles for the full library (`index`), parent-only (`p
 | `onParentReady`      | `function`       | -                | `(response)`                     |
 | `onNavigate`         | `function`       | -                | `({ path })`                     |
 | `actionHandlers`     | `object`         | `{}`             | Custom action handlers           |
+
+##### About `allowedOrigins`
+
+It is a **permission set** — every entry is an origin you allow to embed this
+document — and **the order does not matter**. You do not need to put the actual
+embedder first, and there is no way to tell the child which one it is.
+
+Before the parent replies, the child cannot know which permitted origin is
+framing it, so it addresses **all of them**; the browser delivers to at most one
+and drops the rest. Once the parent answers, the child remembers that origin and
+addresses it exactly from then on.
+
+Wildcard entries (`https://*.example.com`) are matched on **incoming** messages
+but **cannot be addressed** on outgoing ones — a pattern is not an origin any
+window can have. Include at least one concrete origin, or `'*'`, so the child has
+something to address. A list of only patterns will raise an error rather than
+fail silently.
 | `metadata`           | `object`         | `{}`             | Extra data sent with announce    |
 | `timeout`            | `number`         | `5000`           | Message timeout (ms)             |
 | `logLevel`           | `number\|string` | `3` (`'INFO'`)   | Logging verbosity                |

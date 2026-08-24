@@ -59,5 +59,14 @@ export const ERRORS = {
   NOT_IN_IFRAME: 'ChildMessenger can only be used within an iframe',
   NO_CHILD_WINDOW: 'No child window registered',
   INVALID_ACTION: 'No handler found for action',
-  ANNOUNCE_FAILED: 'Failed to announce to parent after retries'
+  ANNOUNCE_FAILED: 'Failed to announce to parent after retries',
+
+  // A dropped postMessage produces no error anywhere, so a plain timeout
+  // reads as "the parent did not answer" when the truth is "nothing was
+  // delivered". These name the origins that were addressed so the evidence
+  // points at the addressing rather than at the peer.
+  NO_PARENT_RESPONSE:
+    'No response from any permitted parent origin — if none of these is the embedder origin, nothing was delivered',
+  NO_ADDRESSABLE_ORIGIN:
+    'No addressable parent origin: allowedOrigins holds only wildcard patterns, which can never be a postMessage target'
 }

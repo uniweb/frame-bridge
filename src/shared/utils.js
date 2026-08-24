@@ -72,6 +72,28 @@ export function generateMessageId(isChildFrame) {
 }
 
 /**
+ * Can this string be used as a postMessage `targetOrigin`?
+ *
+ * `allowedOrigins` is a permission set and may hold wildcard PATTERNS
+ * (`https://*.example.com`) which `OriginValidator` matches on the way in.
+ * A pattern can never be addressed on the way out: measured in Chrome,
+ * `postMessage(msg, 'https://*.example.com')` is accepted without throwing
+ * and is then never delivered to anyone. `'null'` is likewise discarded per
+ * the HTML spec. Both must be filtered before addressing, not after.
+ *
+ * @param {string} origin - Candidate origin
+ * @returns {boolean} True if a window could actually match it
+ */
+export function isAddressableOrigin(origin) {
+  return (
+    typeof origin === 'string' &&
+    origin.length > 0 &&
+    !origin.includes('*') &&
+    origin !== 'null'
+  )
+}
+
+/**
  * Check if code is running in an iframe
  * @returns {boolean}
  */
