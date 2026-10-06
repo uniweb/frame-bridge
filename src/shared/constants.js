@@ -19,6 +19,14 @@ export const ACTIONS = {
 }
 
 /**
+ * Appended to a request's action to name its reply (`__announce` →
+ * `__announceResponse`). It is how a reply is recognised when no promise is
+ * waiting for it — see `BaseMessenger.handleMessage`.
+ * @constant
+ */
+export const RESPONSE_SUFFIX = 'Response'
+
+/**
  * Default configuration values
  * @constant
  */
@@ -60,6 +68,7 @@ export const ERRORS = {
   NO_CHILD_WINDOW: 'No child window registered',
   INVALID_ACTION: 'No handler found for action',
   ANNOUNCE_FAILED: 'Failed to announce to parent after retries',
+  DESTROYED: 'Messenger destroyed',
 
   // A dropped postMessage produces no error anywhere, so a plain timeout
   // reads as "the parent did not answer" when the truth is "nothing was

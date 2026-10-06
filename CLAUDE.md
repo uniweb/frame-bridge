@@ -182,17 +182,46 @@ addresses `iframe.origin`. `ChildMessenger` now does the same via `onValidatedMe
 origin, which includes a sibling iframe or an opener that would otherwise capture our addressing.
 
 The child speaks first, so it has one genuine bootstrap problem: at announce time nobody has told it
-anything. It addresses **every concrete permitted origin**; the browser delivers to at most one.
-That widens nothing (each origin is already permitted) and it is the **only** send that broadcasts —
-after the reply lands, addressing is exact. Pinned by `tests/ChildMessenger.test.js`, whose fake
-parent reproduces the measured browser semantics (accept anything, deliver only on an exact match).
+anything. It addresses **every concrete permitted origin**, each once; the browser delivers to at
+most one. That widens nothing (each origin is already permitted) and it is the **only** send that
+broadcasts — after the reply lands, addressing is exact. Pinned by `tests/ChildMessenger.test.js`,
+whose fake parent reproduces the measured browser semantics (accept anything, deliver only on an
+exact match).
+
+⭐ **It is ONE message addressed several ways — one id, one pending entry, one timer**
+(`sendMessage` takes a list of origins). The reply to the copy that lands settles it, and the copies
+the browser dropped leave nothing behind. *(Until 2026-10-05 each origin was its own message with
+its own timer: with four permitted origins, three timeouts were logged five seconds after a
+handshake that had succeeded — evidence pointing at the wrong side, the failure this section is
+about.)*
+
+### ⛔ A reply nothing is waiting for is DROPPED — never answered
+
+A reply settles the promise waiting on its id. `handleMessage` used to treat any message whose id
+matched no waiting promise as a new request — replies included — and answer it with *"no
+handler"*. That answer is itself a reply the other side is not waiting for, so it was answered in
+turn: **an exchange with no end, from any reply that misses its promise.** Measured 2026-10-05 with
+two windows: a reply arriving after its timeout looped indefinitely (230 messages in 300 ms, the
+action name growing by `Response` each hop), and a second messenger listening in one window grew it
+exponentially (6,144 in 48 ms). A reply misses its promise when its request timed out, when it
+answers a request another messenger in the same window sent, or when one request was delivered,
+and answered, twice.
+
+The rule: a message whose action ends in `RESPONSE_SUFFIX` and matches no waiting promise is dropped
+with a warning — **unless a handler is registered under that exact name**, which makes it a request
+its app chose to name that way. The suffix, not a new field, identifies a reply because it works
+when only one side of a connection has the rule: that side drops the stray, and the exchange ends
+there. Pinned by `tests/replies.test.js`.
 
 ⛔ **Do not "simplify" this back to a single target chosen from the list.** The list cannot answer
 the question, and the failure it produces is silent.
 
 ### Retries
 
-Child announce has retry logic (3 attempts, 500ms delay) in case parent isn't ready.
+Child announce has retry logic (3 attempts, 500 ms apart) in case the parent isn't ready. Each
+attempt waits the full `timeout`, so an unanswered announce fails after about 16 s. `destroy()` ends
+it: a destroyed messenger sends nothing (`sendMessage` rejects with `ERRORS.DESTROYED`), since a
+retry could only announce a messenger that can no longer hear the reply.
 
 ### RouteReporter Cleanup
 

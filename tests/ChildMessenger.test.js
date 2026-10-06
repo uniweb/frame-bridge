@@ -74,6 +74,7 @@ describe('ChildMessenger — addressing the embedder', () => {
   afterEach(() => {
     messenger?.destroy()
     messenger = null
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -163,6 +164,105 @@ describe('ChildMessenger — addressing the embedder', () => {
       messenger.sendToParent('probe', {}).catch(() => {})
       await Promise.resolve()
 
+      expect(parent.addressed).toHaveLength(1)
+    })
+
+    it('addresses a permitted origin once, however often it is listed', async () => {
+      // A listed twice would be delivered twice: two announces, two replies.
+      messenger = newMessenger({
+        allowedOrigins: [REAL_PARENT, ALSO_PERMITTED, REAL_PARENT]
+      })
+
+      messenger.sendToParent('probe', {}).catch(() => {})
+      await Promise.resolve()
+
+      expect(parent.addressed.map((a) => a.targetOrigin)).toEqual([
+        REAL_PARENT,
+        ALSO_PERMITTED
+      ])
+      expect(parent.delivered).toHaveLength(1)
+    })
+  })
+
+  describe('one message, however many origins it is addressed to', () => {
+    const THIRD = 'http://127.0.0.1:3000'
+    const FOURTH = 'http://localhost:3000'
+
+    it('leaves no timer behind once the parent answers, so nothing logs later', async () => {
+      // Four permitted origins, one of them the embedder: the browser drops
+      // three copies of the announce. Each copy used to carry its own timer,
+      // and each logged a timeout five seconds after the handshake succeeded.
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      messenger = newMessenger({
+        allowedOrigins: [ALSO_PERMITTED, THIRD, REAL_PARENT, FOURTH],
+        logLevel: 'error'
+      })
+
+      const announced = messenger.announce()
+      await Promise.resolve()
+      replyToAnnounce()
+      await announced
+
+      expect(messenger.pendingPromises.size).toBe(0)
+      await vi.advanceTimersByTimeAsync(20000)
+      expect(errors).not.toHaveBeenCalled()
+    })
+
+    it('logs one timeout when nothing answers, not one per origin', async () => {
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      global.window.parent = makeParent('http://not-permitted.example')
+      messenger = newMessenger({
+        allowedOrigins: [ALSO_PERMITTED, REAL_PARENT],
+        logLevel: 'error'
+      })
+
+      const sent = messenger.sendToParent('probe', {})
+      const assertion = expect(sent).rejects.toThrow(ERRORS.NO_PARENT_RESPONSE)
+      await vi.advanceTimersByTimeAsync(6000)
+      await assertion
+
+      expect(errors).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('destroy', () => {
+    it('ends a pending announce instead of retrying it', async () => {
+      // The parent never answers, so the announce would retry for ~16 s.
+      messenger = newMessenger({ allowedOrigins: [REAL_PARENT] })
+
+      const announced = messenger.announce()
+      const ended = expect(announced).rejects.toThrow('Messenger destroyed')
+      await Promise.resolve()
+      expect(parent.addressed).toHaveLength(1)
+
+      messenger.destroy()
+      await vi.advanceTimersByTimeAsync(20000)
+      await ended
+      expect(parent.addressed).toHaveLength(1)
+    })
+
+    it('sends nothing once destroyed', async () => {
+      messenger = newMessenger({ allowedOrigins: [REAL_PARENT] })
+      messenger.destroy()
+
+      await expect(messenger.sendToParent('probe', {})).rejects.toThrow(
+        'Messenger destroyed'
+      )
+      expect(parent.addressed).toHaveLength(0)
+    })
+
+    it('raises nothing when destroyed during the automatic announce', async () => {
+      // Nobody holds the automatic announce's promise, so ending it must not
+      // surface as an unhandled rejection (which fails this run).
+      messenger = new ChildMessenger({
+        allowedOrigins: [REAL_PARENT],
+        logLevel: 'silent'
+      })
+      await Promise.resolve()
+      expect(parent.addressed).toHaveLength(1)
+
+      messenger.destroy()
+      await vi.advanceTimersByTimeAsync(20000)
       expect(parent.addressed).toHaveLength(1)
     })
   })

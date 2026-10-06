@@ -17,12 +17,13 @@ export class ChildMessenger extends BaseMessenger {
    * @param {Object} options - Configuration options
    * @param {string[]|null} options.allowedOrigins - Allowed parent origins
    * @param {boolean} options.dimensionReporting - Enable automatic dimension reporting
-   * @param {number} options.dimensionThreshold - Minimum dimension change (px) to report (default: 5)
+   * @param {number} options.dimensionThreshold - Minimum dimension change (px) to report (default: 1)
    * @param {boolean} options.routeReporting - Enable automatic route reporting
    * @param {Function} options.getRoute - Function to get current route (default: pathname)
    * @param {Function} options.onParentReady - Callback when parent responds to announce
    * @param {Function} options.onNavigate - Callback when parent requests navigation
    * @param {Object} options.metadata - Additional metadata to send with announce
+   * @param {boolean} options.autoAnnounce - Announce on construction (default: true)
    * @param {Object} options.actionHandlers - Custom action handlers
    * @param {number} options.timeout - Message timeout
    * @param {number|string} options.logLevel - Logging level
@@ -75,9 +76,14 @@ export class ChildMessenger extends BaseMessenger {
     this.dimensionReporter = null
     this.routeReporter = null
 
-    // Announce to parent (can be deferred with autoAnnounce: false)
+    // Announce to parent (can be deferred with autoAnnounce: false). Nobody
+    // holds this promise, so a failure surfaces as an unhandled rejection —
+    // deliberately, see announce(). Being destroyed mid-announce is not a
+    // failure: it is the owner's decision, so that one is swallowed.
     if (options.autoAnnounce !== false) {
-      this.announce()
+      this.announce().catch((error) => {
+        if (!this.destroyed) throw error
+      })
     }
   }
 
@@ -147,6 +153,10 @@ export class ChildMessenger extends BaseMessenger {
         this.handleAnnounceResponse(response)
         return // Success!
       } catch (error) {
+        // Destroyed mid-announce: stop. A retry would announce a messenger
+        // that can no longer hear the reply.
+        if (this.destroyed) throw error
+
         attempt++
         this.logger.warn(`Announce attempt ${attempt} failed:`, error.message)
 
@@ -291,11 +301,11 @@ export class ChildMessenger extends BaseMessenger {
     }
 
     // Before the handshake we do not, and `allowedOrigins` cannot tell us:
-    // it is a permission set, not an identity. Address every concrete member.
-    // The browser delivers to the one that matches the real parent and drops
-    // the rest, so exactly one lands. Nothing is widened — every origin used
-    // is already permitted by the deployment.
-    const targets = allowed.filter(isAddressableOrigin)
+    // it is a permission set, not an identity. Address every concrete member,
+    // each once. The browser delivers to the one that matches the real parent
+    // and drops the rest, so at most one lands. Nothing is widened — every
+    // origin used is already permitted by the deployment.
+    const targets = [...new Set(allowed.filter(isAddressableOrigin))]
 
     if (targets.length === 0) {
       // Patterns cannot be a postMessage target, so there is nothing to
@@ -311,15 +321,19 @@ export class ChildMessenger extends BaseMessenger {
   }
 
   /**
-   * Address several permitted origins at once, resolving with whichever
-   * reply arrives. Used only to bootstrap: once any of them answers,
-   * `onValidatedMessage` latches its origin and later sends are exact.
+   * Address several permitted origins at once. Used only to bootstrap: once
+   * the parent answers, `onValidatedMessage` latches its origin and later
+   * sends are exact.
+   *
+   * It is ONE message posted to every origin — one id, one timer
+   * (`sendMessage`) — so the reply to the one copy the browser delivers
+   * settles it, and the dropped copies leave nothing behind to time out.
    *
    * @private
    * @param {string} action - Action name
    * @param {Object} params - Parameters
    * @param {string[]} targets - Concrete origins to address
-   * @returns {Promise<*>} The first response received
+   * @returns {Promise<*>} The parent's response
    */
   broadcastToParent(action, params, targets) {
     if (targets.length === 1) {
@@ -328,32 +342,17 @@ export class ChildMessenger extends BaseMessenger {
 
     this.logger.debug('Addressing permitted parent origins:', targets)
 
-    return new Promise((resolve, reject) => {
-      let settled = false
-      const failures = []
-
-      targets.forEach((origin) => {
-        this.sendMessage(window.parent, action, params, origin).then(
-          (result) => {
-            if (settled) return
-            settled = true
-            resolve(result)
-          },
-          (error) => {
-            failures.push(`${origin} (${error.message})`)
-            if (settled || failures.length < targets.length) return
-            settled = true
-            // Every permitted origin was addressed and none answered. Say so
-            // rather than blaming the parent for a message it never received.
-            reject(
-              new Error(
-                `${ERRORS.NO_PARENT_RESPONSE}. Addressed: ${failures.join('; ')}`
-              )
-            )
-          }
+    return this.sendMessage(window.parent, action, params, targets).catch(
+      (error) => {
+        if (this.destroyed) throw error
+        // Every permitted origin was addressed and none answered. Say so
+        // rather than blaming the parent for a message it never received.
+        throw new Error(
+          `${ERRORS.NO_PARENT_RESPONSE}. Addressed: ${targets.join(', ')}`,
+          { cause: error }
         )
-      })
-    })
+      }
+    )
   }
 
   /**

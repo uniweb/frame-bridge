@@ -1,6 +1,15 @@
-import { ACTIONS, DEFAULTS, ERRORS } from './constants.js'
+import { ACTIONS, DEFAULTS, ERRORS, RESPONSE_SUFFIX } from './constants.js'
 import { OriginValidator } from './OriginValidator.js'
 import { Logger, generateMessageId } from './utils.js'
+
+/**
+ * A reply is named after its request: `sendResponse` appends RESPONSE_SUFFIX.
+ * @param {*} action - The action of a received message
+ * @returns {boolean}
+ */
+function isReply(action) {
+  return typeof action === 'string' && action.endsWith(RESPONSE_SUFFIX)
+}
 
 /**
  * Base class for handling message communication between parent and child windows
@@ -38,6 +47,7 @@ export class BaseMessenger {
 
     // Initialize state
     this.pendingPromises = new Map()
+    this.destroyed = false
     this.validator = new OriginValidator(allowedOrigins, this.logger)
 
     // Merge built-in and custom action handlers
@@ -77,12 +87,21 @@ export class BaseMessenger {
   onValidatedMessage(_event) {}
 
   /**
-   * Send a message and wait for response
+   * Send a message and wait for response.
+   *
+   * A message may be addressed to several origins at once — the child does
+   * this before the handshake, when it cannot yet know which permitted origin
+   * is its embedder. It is still ONE message: one id, one pending entry, one
+   * timer, posted once per origin. The browser delivers at most one copy, and
+   * the reply to that copy settles it. *(Until 2026-10-05 each origin was sent
+   * as its own message with its own timer, so every copy the browser dropped
+   * logged a timeout five seconds after the handshake had succeeded.)*
+   *
    * @protected
    * @param {Window} targetWindow - Target window object
    * @param {string} action - Action name
    * @param {Object} params - Parameters to send
-   * @param {string} targetOrigin - Target origin for postMessage
+   * @param {string|string[]} targetOrigin - Target origin(s) for postMessage
    * @returns {Promise<*>} Response from target
    */
   sendMessage(
@@ -91,6 +110,14 @@ export class BaseMessenger {
     params = {},
     targetOrigin = window.location.origin
   ) {
+    // A destroyed messenger can no longer hear a reply, so it sends nothing.
+    if (this.destroyed) {
+      return Promise.reject(new Error(ERRORS.DESTROYED))
+    }
+
+    const targetOrigins = [].concat(targetOrigin)
+    const addressed = targetOrigins.join(', ')
+
     return new Promise((resolve, reject) => {
       const messageId = generateMessageId(this.isChildFrame)
       const message = {
@@ -111,11 +138,11 @@ export class BaseMessenger {
         this.logger.error(ERRORS.MESSAGE_TIMEOUT, {
           action,
           messageId,
-          targetOrigin
+          targetOrigin: addressed
         })
         reject(
           new Error(
-            `${ERRORS.MESSAGE_TIMEOUT}: ${action} (addressed ${targetOrigin})`
+            `${ERRORS.MESSAGE_TIMEOUT}: ${action} (addressed ${addressed})`
           )
         )
       }, this.timeout)
@@ -123,14 +150,23 @@ export class BaseMessenger {
       // Store promise resolver with timeout
       this.pendingPromises.set(messageId, { resolve, reject, timeoutId })
 
-      // Send message
-      try {
-        targetWindow.postMessage(message, targetOrigin)
-      } catch (error) {
+      // Send message, once per origin
+      let posted = 0
+      let lastError
+      for (const origin of targetOrigins) {
+        try {
+          targetWindow.postMessage(message, origin)
+          posted++
+        } catch (error) {
+          lastError = error
+          this.logger.error('Failed to send message:', { origin, error })
+        }
+      }
+
+      if (posted === 0) {
         this.pendingPromises.delete(messageId)
         clearTimeout(timeoutId)
-        this.logger.error('Failed to send message:', error)
-        reject(error)
+        reject(lastError)
       }
     })
   }
@@ -165,6 +201,20 @@ export class BaseMessenger {
       this.pendingPromises.delete(id)
       clearTimeout(timeoutId)
       resolve(params)
+      return
+    }
+
+    // ⛔ A reply nothing is waiting for is DROPPED, never answered. Answering
+    // it ("no handler") sends the peer a reply that IT is not waiting for,
+    // which it answers in turn, without end — measured: a reply arriving after
+    // its timeout looped indefinitely, and a second messenger listening in one
+    // window grew the loop exponentially. A name with a registered handler is
+    // still handled: that is a request its app chose to name this way.
+    if (isReply(action) && !this.actionHandlers.hasOwnProperty(action)) {
+      this.logger.warn(
+        'Dropped a reply nothing is waiting for (its request timed out, was answered twice, or came from another messenger in this window):',
+        { action, id }
+      )
       return
     }
 
@@ -226,7 +276,7 @@ export class BaseMessenger {
   sendResponse(targetWindow, messageId, action, result, targetOrigin) {
     const message = {
       id: messageId,
-      action: `${action}Response`,
+      action: `${action}${RESPONSE_SUFFIX}`,
       params: result,
       sender: 'FrameBridge'
     }
@@ -291,12 +341,13 @@ export class BaseMessenger {
    * Destroy messenger and cleanup
    */
   destroy() {
+    this.destroyed = true
     window.removeEventListener('message', this.boundHandleMessage)
 
     // Clear pending promises
     this.pendingPromises.forEach(({ reject, timeoutId }) => {
       clearTimeout(timeoutId)
-      reject(new Error('Messenger destroyed'))
+      reject(new Error(ERRORS.DESTROYED))
     })
     this.pendingPromises.clear()
 

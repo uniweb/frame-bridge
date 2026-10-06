@@ -10,6 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A reply nothing is waiting for is dropped, never answered.** A reply
+  settles the promise waiting on its id. One that matched none — it arrived
+  after its timeout, or it answered a request another messenger in the same
+  window had sent — was handled as a new request and answered with "no
+  handler". The other side received that answer as a reply *it* was not
+  waiting for, and answered in turn: an exchange with no end. Measured with
+  two windows, a late reply looped indefinitely, and a second messenger
+  listening in one window made the loop grow exponentially. Such a reply is
+  now dropped with a warning. An action registered under a name ending in
+  `Response` is still handled as a request; a request so named that has no
+  handler on the other side now times out instead of receiving a "no
+  handler" reply.
+- **Addressing several parent origins no longer leaves timers behind.**
+  Before the handshake the child addresses every permitted parent origin.
+  Each was sent as its own message with its own timer, so every copy the
+  browser dropped logged *"Message timed out waiting for response"* five
+  seconds after the handshake had succeeded. It is now one message posted to
+  each origin, with one id and one timer, settled by the reply to the copy
+  that was delivered. When nothing answers, one timeout is logged instead of
+  one per origin. An origin listed twice is addressed once.
+- **A destroyed messenger sends nothing.** `destroy()` stopped listening but
+  not sending: an announce in progress kept retrying, posting announces whose
+  replies nothing could hear, and ended about 16 seconds later as an
+  unhandled *"Failed to announce to parent after retries"*. Destroying now
+  ends the announce, and a send after `destroy()` rejects with *"Messenger
+  destroyed"* without posting.
+
 ## [0.3.1] - 2026-08-24
 
 ### Fixed

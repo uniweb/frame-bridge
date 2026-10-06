@@ -282,6 +282,8 @@ The library is split into parent and child messengers that communicate via `post
 
 4. **Custom actions** — Both sides can register `actionHandlers` for bidirectional RPC. All messages return promises.
 
+5. **Replies** — A reply settles the promise waiting on its id. A reply nothing is waiting for — its request timed out, or another messenger in the same window sent it — is dropped with a warning, never answered.
+
 ### Build Outputs
 
 Rollup generates two formats in `dist/`:
@@ -324,7 +326,7 @@ The package's `exports` point at `src/`, so a modern bundler resolves the source
 | `setHandler(action, fn)`                | `void`         | Set/replace single action handler    |
 | `setHandlers(handlers)`                 | `void`         | Set/replace multiple action handlers |
 | `setLogLevel(level)`                    | `void`         | Change log level                     |
-| `destroy()`                             | `void`         | Cleanup and remove listeners         |
+| `destroy()`                             | `void`         | Stop listening and sending; pending messages reject |
 
 ### ChildMessenger
 
@@ -374,7 +376,7 @@ fail silently.
 | `setHandler(action, fn)`       | `void`    | Set/replace single action handler    |
 | `setHandlers(handlers)`        | `void`    | Set/replace multiple action handlers |
 | `setLogLevel(level)`           | `void`    | Change log level                     |
-| `destroy()`                    | `void`    | Cleanup and remove listeners         |
+| `destroy()`                    | `void`    | Stop listening and sending; ends a pending announce |
 
 If `ChildMessenger` is constructed outside an iframe, it creates a no-op instance (`isActive = false`) with a console warning.
 
