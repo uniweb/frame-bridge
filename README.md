@@ -56,9 +56,9 @@ const messenger = new ParentMessenger({
     console.log(`Iframe resized to ${height}px`)
   },
 
-  // Custom action handlers
+  // Custom action handlers — each receives (params, source, origin)
   actionHandlers: {
-    userSelected: (iframeId, { userId }) => {
+    userSelected: ({ userId }, source, origin) => {
       return { success: true }
     }
   }
@@ -73,7 +73,7 @@ messenger.getIframe('iframe-id') // { origin, dimensions, route, metadata }
 messenger.getAllIframes()
 
 // Update handlers after construction
-messenger.setHandler('userSelected', (id, params) => {
+messenger.setHandler('userSelected', (params, source) => {
   /* ... */
 })
 messenger.setHandlers({ action1: fn1, action2: fn2 })
@@ -140,34 +140,52 @@ messenger.destroy()
 
 ### React Pattern
 
-Construct the messenger once in `useState`, register handlers in `useEffect` so they can access current React state:
+Create the messenger in an effect and destroy it in that effect's cleanup, so
+the effect owns its whole lifetime. Handlers read current state through a ref,
+so the messenger is created once:
 
 ```javascript
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChildMessenger } from '@uniweb/frame-bridge/child'
 
 function App() {
   const [count, setCount] = useState(0)
-  const [messenger] = useState(
-    () =>
-      new ChildMessenger({
-        allowedOrigins: ['https://parent.example.com']
-      })
-  )
 
+  const countRef = useRef(count)
   useEffect(() => {
-    messenger.setHandlers({
-      getCount: () => ({ count }), // always reads current state
-      navigate: ({ path }) => {
-        window.history.pushState({}, '', path)
-      }
+    countRef.current = count
+  }, [count])
+
+  const messengerRef = useRef(null)
+  useEffect(() => {
+    const messenger = new ChildMessenger({
+      allowedOrigins: ['https://parent.example.com'],
+      actionHandlers: {
+        getCount: () => ({ count: countRef.current }) // always the current state
+      },
+      onNavigate: ({ path }) => window.history.pushState({}, '', path)
     })
-    return () => messenger.destroy()
-  }, [messenger, count])
+    messengerRef.current = messenger
+    return () => {
+      messenger.destroy()
+      messengerRef.current = null
+    }
+  }, [])
+
+  // Elsewhere, e.g. in an event handler:
+  //   messengerRef.current?.sendToParent('userSelected', { userId: 123 })
 
   return <div>{/* ... */}</div>
 }
 ```
+
+Don't create the messenger in a `useState` initializer. Construction starts
+listening and announces to the parent, and React's StrictMode runs initializers
+twice in development, so the extra instance is never destroyed. Don't put
+state in the dependencies of the effect that destroys it either: the cleanup
+then runs on every change and leaves a destroyed messenger in use. If handlers
+must be registered after construction, pass `autoAnnounce: false`, call
+`setHandlers()`, then `announce()`.
 
 ## Embedding with Auto-Init Scripts
 
@@ -266,13 +284,12 @@ The library is split into parent and child messengers that communicate via `post
 
 ### Build Outputs
 
-Rollup generates multiple formats in `dist/`:
+Rollup generates two formats in `dist/`:
 
-- **ESM** (`dist/esm/`) — For modern bundlers
-- **UMD** (`dist/umd/`) — For universal module systems
-- **IIFE** (`dist/auto/`) — Auto-initializing scripts for `<script>` tags (minified and unminified)
+- **ESM** (`dist/esm/`) — For modern bundlers: the full library (`index`), parent-only (`parent`), and child-only (`child`)
+- **IIFE** (`dist/auto/`) — Auto-initializing scripts for `<script>` tags, `parent` and `child` (minified and unminified)
 
-Each format has separate bundles for the full library (`index`), parent-only (`parent`), and child-only (`child`).
+The package's `exports` point at `src/`, so a modern bundler resolves the source and `dist/esm/` serves `main`/`module` resolvers.
 
 ## API Reference
 
@@ -287,6 +304,7 @@ Each format has separate bundles for the full library (`index`), parent-only (`p
 | `urlSync`             | `boolean`        | `false`          | Sync parent URL with iframe routes                    |
 | `urlParamKey`         | `string`         | `'path'`         | Query param key for routes                            |
 | `preserveOtherParams` | `boolean`        | `true`           | Keep other query params when syncing                  |
+| `syncParams`          | `string[]\|null` | `null` (all)     | Query params passed to an iframe at announce (`urlSync`) |
 | `jsonLD`              | `boolean`        | `false`          | Inject JSON-LD from iframes into `<head>`             |
 | `onIframeReady`       | `function`       | -                | `(iframeId, { origin, dimensions, route, metadata })` |
 | `onRouteChange`       | `function`       | -                | `(iframeId, { path, title })`                         |
@@ -322,6 +340,10 @@ Each format has separate bundles for the full library (`index`), parent-only (`p
 | `onParentReady`      | `function`       | -                | `(response)`                     |
 | `onNavigate`         | `function`       | -                | `({ path })`                     |
 | `actionHandlers`     | `object`         | `{}`             | Custom action handlers           |
+| `autoAnnounce`       | `boolean`        | `true`           | Announce on construction; `false` to call `announce()` yourself |
+| `metadata`           | `object`         | `{}`             | Extra data sent with announce    |
+| `timeout`            | `number`         | `5000`           | Message timeout (ms)             |
+| `logLevel`           | `number\|string` | `3` (`'INFO'`)   | Logging verbosity                |
 
 ##### About `allowedOrigins`
 
@@ -339,14 +361,12 @@ but **cannot be addressed** on outgoing ones — a pattern is not an origin any
 window can have. Include at least one concrete origin, or `'*'`, so the child has
 something to address. A list of only patterns will raise an error rather than
 fail silently.
-| `metadata`           | `object`         | `{}`             | Extra data sent with announce    |
-| `timeout`            | `number`         | `5000`           | Message timeout (ms)             |
-| `logLevel`           | `number\|string` | `3` (`'INFO'`)   | Logging verbosity                |
 
 #### Methods
 
 | Method                         | Returns   | Description                          |
 | ------------------------------ | --------- | ------------------------------------ |
+| `announce()`                   | `Promise` | Announce to the parent — automatic unless `autoAnnounce: false` |
 | `sendToParent(action, params)` | `Promise` | Send message to parent               |
 | `updateRoute(path, title?)`    | `void`    | Manually report route change         |
 | `updateDimensions()`           | `void`    | Manually trigger dimension report    |

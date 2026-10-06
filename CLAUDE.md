@@ -19,7 +19,7 @@ npm run dev          # Watch mode for development
 
 ```bash
 npm test             # Run tests with Vitest
-npm test:watch       # Run tests in watch mode
+npm run test:watch   # Run tests in watch mode
 ```
 
 ## Architecture
@@ -61,18 +61,27 @@ The auto-init IIFE scripts explicitly opt in (`autoResize: true`, etc.) for the 
 
 ### Mutable Handlers
 
-Action handlers can be updated after construction via `setHandler(action, fn)` or `setHandlers({ action: fn, ... })`. This is the recommended pattern for React components — construct the messenger once in `useState`, then register handlers in `useEffect`:
+Action handlers can be updated after construction via `setHandler(action, fn)` or `setHandlers({ action: fn, ... })`.
+
+**In React, one effect owns the messenger's whole lifetime** — created in it, destroyed in its
+cleanup — and handlers read current state through a ref (the README's *React Pattern* has the full
+example):
 
 ```jsx
-const [messenger] = useState(() => new ChildMessenger({ ... }))
-
 useEffect(() => {
-  messenger.setHandlers({
-    myAction: (params) => { /* can access current React state */ },
+  const messenger = new ChildMessenger({
+    actionHandlers: { myAction: (params) => doSomething(stateRef.current) },
   })
   return () => messenger.destroy()
-}, [messenger])
+}, [])
 ```
+
+⛔ **Not in a `useState` initializer.** Construction is a side effect — it adds a window listener
+and announces — and React's StrictMode runs initializers twice in development, so the extra
+instance is never destroyed and keeps answering messages. ⛔ **Nor in an effect whose dependencies
+change**, with `destroy()` in its cleanup: the cleanup runs on every change and leaves a destroyed
+messenger in use. *(Until 2026-10-05 this file recommended the first, and the README both.)* To register
+handlers after construction, pass `autoAnnounce: false`, call `setHandlers()`, then `announce()`.
 
 ### Message Flow
 
@@ -125,11 +134,9 @@ that path is the one nobody developing here looks at — it shipped a hardcoded
 `@version 1.0.0` for the package's whole history, and was found by a consumer
 resolving the package the other way, not from inside.
 
-Each format has separate bundles for:
-
-- Full library (`index.js`)
-- Parent-only (`parent.js`)
-- Child-only (`child.js`)
+ESM has three bundles — the full library (`index.js`), parent-only (`parent.js`) and child-only
+(`child.js`); IIFE has two, `parent` and `child`, since each auto-init script runs on one side
+(`rollup.config.js`).
 
 ## Key Implementation Details
 
@@ -193,10 +200,8 @@ Child announce has retry logic (3 attempts, 500ms delay) in case parent isn't re
 
 ## Testing
 
-Tests use Vitest with jsdom environment. Run individual test files:
+Tests use Vitest with jsdom environment, in `tests/`. Run individual test files:
 
 ```bash
-npm test -- src/parent/ParentMessenger.test.js
+npm test -- tests/ChildMessenger.test.js
 ```
-
-Coverage reports are generated in `coverage/` directory.

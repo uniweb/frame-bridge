@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+> **Note:** the `0.2.x` releases were made without changelog updates and are not
+> reconstructed here — inventing them after the fact would be a guess.
+
 ## [Unreleased]
+
+## [0.3.1] - 2026-08-24
 
 ### Fixed
 
@@ -32,9 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 auto-init child enables route reporting and acts on `navigate` from its parent,
 so a permissive default would let any page that frames the document steer it.
 
-> **Note:** this file has no entries for `0.1.x` or `0.2.x`. Those releases were
-> made without changelog updates and are not reconstructed here — inventing them
-> after the fact would be a guess. Entries resume from this change.
+## [0.3.0] - 2026-08-24
 
 ### Fixed
 
@@ -60,6 +63,10 @@ so a permissive default would let any page that frames the document steer it.
   `postMessage` is indistinguishable from a peer that never replied, so a bare
   timeout pointed at the wrong side of the connection.
 
+## [0.1.0] - 2025-12-11
+
+### Changed
+
 - Switched to ESM-only builds (removed CommonJS/UMD support)
 - Updated package.json with npm best practices (homepage, bugs, engines, sideEffects)
 - Enhanced keywords for better discoverability
@@ -70,19 +77,19 @@ so a permissive default would let any page that frames the document steer it.
 - TypeScript type definitions (not currently supported)
 - CommonJS/UMD builds (use ESM or IIFE/CDN builds instead)
 
-## [0.0.3] - 2024-12-11
+## [0.0.3] - 2025-12-11
 
 ### Changed
 
 - Corrected repository URL in package.json
 
-## [0.0.2] - 2024-12-11
+## [0.0.2] - 2025-12-11
 
 ### Added
 
 - Send to parent functionality
 
-## [0.0.1] - 2024-11-08
+## [0.0.1] - 2025-11-08
 
 ### Added
 
@@ -97,7 +104,9 @@ so a permissive default would let any page that frames the document steer it.
 - Support for multiple iframes
 - Auto-init builds for CDN usage
 
-[Unreleased]: https://github.com/uniweb/frame-bridge/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/uniweb/frame-bridge/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/uniweb/frame-bridge/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/uniweb/frame-bridge/compare/v0.2.4...v0.3.0
+[0.1.0]: https://github.com/uniweb/frame-bridge/compare/v0.0.3...v0.1.0
 [0.0.3]: https://github.com/uniweb/frame-bridge/compare/v0.0.2...v0.0.3
-[0.0.2]: https://github.com/uniweb/frame-bridge/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/uniweb/frame-bridge/releases/tag/v0.0.1
+[0.0.2]: https://github.com/uniweb/frame-bridge/releases/tag/v0.0.2
