@@ -138,6 +138,13 @@ ESM has three bundles — the full library (`index.js`), parent-only (`parent.js
 (`child.js`); IIFE has two, `parent` and `child`, since each auto-init script runs on one side
 (`rollup.config.js`).
 
+### CHANGELOG
+
+A release bumps `version` and tags, and leaves `CHANGELOG.md` alone. Write a change's entry under
+`[Unreleased]`; once its release is out, move the entries under `## [x.y.z] - date` above a fresh
+`[Unreleased]`, and update the links at the bottom. ⚠️ *Three releases in a row — 0.3.0, 0.3.1 and
+0.3.2 — shipped describing their own changes as "Unreleased" before this note.*
+
 ## Key Implementation Details
 
 ### Promise-Based Messaging

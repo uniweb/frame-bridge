@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-05
+
 ### Fixed
 
 - **A reply nothing is waiting for is dropped, never answered.** A reply
@@ -133,7 +135,8 @@ so a permissive default would let any page that frames the document steer it.
 - Support for multiple iframes
 - Auto-init builds for CDN usage
 
-[Unreleased]: https://github.com/uniweb/frame-bridge/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/uniweb/frame-bridge/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/uniweb/frame-bridge/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/uniweb/frame-bridge/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/uniweb/frame-bridge/compare/v0.2.4...v0.3.0
 [0.1.0]: https://github.com/uniweb/frame-bridge/compare/v0.0.3...v0.1.0
