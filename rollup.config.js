@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import resolve from '@rollup/plugin-node-resolve'
 import terser from '@rollup/plugin-terser'
 
 // Read from package.json rather than hardcoding. The version is bumped at
@@ -23,7 +22,7 @@ const banner = `/**
 // Base configuration
 const baseConfig = {
   external: [],
-  plugins: [resolve()]
+  plugins: []
 }
 
 // Create configs for different builds
