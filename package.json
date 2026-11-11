@@ -47,7 +47,7 @@
         "name": "Proximify",
         "url": "https://proximify.com"
     },
-    "license": "MIT",
+    "license": "Apache-2.0",
     "homepage": "https://github.com/uniweb/frame-bridge#readme",
     "bugs": {
         "url": "https://github.com/uniweb/frame-bridge/issues"

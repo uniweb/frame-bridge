@@ -382,4 +382,4 @@ If `ChildMessenger` is constructed outside an iframe, it creates a no-op instanc
 
 ## License
 
-MIT
+Apache-2.0
